@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>&#8203;</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #fff;
+    overscroll-behavior: none;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  #stage {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh; /* korrekte Höhe auf Mobilgeräten (Adressleiste) */
+    overflow: hidden;
+    cursor: grab;
+    background: #fff;
+  }
+  #stage.dragging { cursor: grabbing; }
+
+  #centerfold {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: auto;
+    max-width: none;
+    display: block;
+    will-change: transform;
+    pointer-events: none;
+    -webkit-user-drag: none;
+  }
+
+  /* ---- Scroll-gebundene Typografie ---- */
+  .typo {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    margin: 0;
+    white-space: nowrap;
+    font-family: "Helvetica Neue", HelveticaNeue, "Helvetica Neue LT Std", Helvetica, "Arial Black", Arial, sans-serif;
+    font-weight: 900;
+    font-stretch: normal;
+    color: #fff;
+    line-height: 0.92;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    text-align: center;
+    pointer-events: none;
+    will-change: transform;
+    visibility: hidden; /* bis Layout steht */
+  }
+  #typoLeft  { font-size: clamp(2.6rem, 11vw, 11rem); }
+  #typoRight { font-size: clamp(2.2rem, 9vw, 9rem); }
+
+  /* ---- Impressum: statisch, dezent, ständig verfügbar ---- */
+  #impressum {
+    position: fixed;
+    right: 16px;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    z-index: 10;
+    font-family: "Helvetica Neue", HelveticaNeue, Helvetica, Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #fff;
+    opacity: 0.55;
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+  }
+  #impressum:hover,
+  #impressum:focus-visible {
+    opacity: 1;
+    outline: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <img id="centerfold" src="assets/centerfold.jpg" alt="" draggable="false">
+  <div class="typo" id="typoLeft">KEIN BOCK</div>
+  <div class="typo" id="typoRight">AUF KAFFEE<br>&amp; KUCHEN</div>
+</div>
+
+<a id="impressum" href="impressum.html">Impressum</a>
+
+<script>
+(function () {
+  // ---- Geräteerkennung: Desktop oder Mobil ----
+  var isMobile = (function () {
+    var uaMobile = /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent);
+    var coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    var touchPoints = navigator.maxTouchPoints > 0;
+    return uaMobile || (coarse && touchPoints);
+  })();
+  document.documentElement.dataset.device = isMobile ? 'mobile' : 'desktop';
+
+  var stage = document.getElementById('stage');
+  var img = document.getElementById('centerfold');
+  var typoLeft = document.getElementById('typoLeft');
+  var typoRight = document.getElementById('typoRight');
+
+  var x = 0, y = 0;             // aktuelle Bildposition
+  var minX = 0, maxX = 0;       // Verschiebegrenzen
+  var centerX = 0;              // zentrale Startposition (Centerfold mittig)
+  var dragging = false;
+  var lastPX = 0, lastPY = 0;
+  var vx = 0;                   // Geschwindigkeit für sanftes Ausrollen
+  var rafId = null;
+  var vw = 0;
+  var wLeft = 0, wRight = 0;    // Textbreiten
+
+  function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+  function updateTypo() {
+    // Fortschritt Linksscrollen: 0 (Mitte) -> 1 (rechter Bildrand erreicht)
+    var pL = 0, pR = 0;
+    if (centerX - minX > 0) pL = clamp((centerX - x) / (centerX - minX), 0, 1);
+    if (maxX - centerX > 0) pR = clamp((x - centerX) / (maxX - centerX), 0, 1);
+
+    // "KEIN BOCK": kommt vom linken Bildschirmrand, endet mittig zentriert
+    var startL = -wLeft / 2;            // Textmitte komplett links außerhalb
+    var endL = vw / 2;                  // Textmitte = Bildschirmmitte
+    var cL = startL + pL * (endL - startL);
+    typoLeft.style.transform = 'translate(' + (cL - wLeft / 2) + 'px, -50%)';
+
+    // "AUF KAFFEE / & KUCHEN": kommt vom rechten Bildschirmrand, endet mittig
+    var startR = vw + wRight / 2;       // Textmitte komplett rechts außerhalb
+    var endR = vw / 2;
+    var cR = startR + pR * (endR - startR);
+    typoRight.style.transform = 'translate(' + (cR - wRight / 2) + 'px, -50%)';
+  }
+
+  function apply() {
+    img.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+    updateTypo();
+  }
+
+  function measureTypo() {
+    wLeft = typoLeft.offsetWidth;
+    wRight = typoRight.offsetWidth;
+    typoLeft.style.visibility = 'visible';
+    typoRight.style.visibility = 'visible';
+  }
+
+  function layout(recenter) {
+    vw = stage.clientWidth;
+    var vh = stage.clientHeight;
+
+    // Grundgröße: volle Höhe
+    var ratio = img.naturalWidth / img.naturalHeight;
+    var iw = vh * ratio;
+    var ih = vh;
+
+    // Mindest-Scrollweg sicherstellen: Bild muss deutlich breiter sein
+    // als der Viewport (Desktop stärker vergrößert als Mobil)
+    var minFactor = isMobile ? 1.6 : 1.8;
+    if (iw < vw * minFactor) {
+      iw = vw * minFactor;
+      ih = iw / ratio;
+    }
+    img.style.height = ih + 'px';
+
+    minX = vw - iw; // Bild ganz nach links gezogen (rechter Fotorand sichtbar)
+    maxX = 0;       // Bild ganz nach rechts gezogen (linker Fotorand sichtbar)
+    centerX = (vw - iw) / 2;
+
+    // Vertikal: mittig fixiert (Überstand oben/unten gleichmäßig beschnitten)
+    y = (vh - ih) / 2;
+
+    measureTypo();
+
+    if (recenter) {
+      x = clamp(centerX, minX, maxX);
+    } else {
+      x = clamp(x, minX, maxX);
+    }
+    apply();
+  }
+
+  function momentum() {
+    vx *= 0.94;
+    if (Math.abs(vx) < 0.1) { rafId = null; return; }
+    x = clamp(x + vx, minX, maxX);
+    apply();
+    rafId = requestAnimationFrame(momentum);
+  }
+
+  function onDown(e) {
+    dragging = true;
+    stage.classList.add('dragging');
+    lastPX = e.clientX; lastPY = e.clientY;
+    vx = 0;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    stage.setPointerCapture && stage.setPointerCapture(e.pointerId);
+  }
+
+  function onMove(e) {
+    if (!dragging) return;
+    var dx = e.clientX - lastPX;
+    lastPX = e.clientX; lastPY = e.clientY;
+    vx = dx;
+    x = clamp(x + dx, minX, maxX);
+    apply();
+  }
+
+  function onUp() {
+    if (!dragging) return;
+    dragging = false;
+    stage.classList.remove('dragging');
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      rafId = requestAnimationFrame(momentum);
+    }
+  }
+
+  stage.addEventListener('pointerdown', onDown);
+  stage.addEventListener('pointermove', onMove);
+  stage.addEventListener('pointerup', onUp);
+  stage.addEventListener('pointercancel', onUp);
+  stage.addEventListener('lostpointercapture', onUp);
+
+  // ---- Desktop: Mausrad / Trackpad ----
+  // Vertikales Scrollen wird horizontal übersetzt:
+  // nach unten scrollen = nach rechts über das Foto fahren (Bild wandert nach links),
+  // nach oben scrollen = nach links über das Foto fahren.
+  // Horizontale Trackpad-Gesten (deltaX) funktionieren zusätzlich direkt.
+  stage.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; vx = 0; }
+
+    var dy = e.deltaY;
+    var dx = e.deltaX;
+    // Zeilen-/Seitenmodus mancher Mäuse in Pixel umrechnen
+    if (e.deltaMode === 1) { dy *= 16; dx *= 16; }
+    else if (e.deltaMode === 2) { dy *= vw; dx *= vw; }
+
+    var delta = Math.abs(dy) > Math.abs(dx) ? dy : dx;
+    x = clamp(x - delta, minX, maxX);
+    apply();
+  }, { passive: false });
+
+  // Tastatur: Pfeiltasten verschieben (unsichtbare Zugänglichkeit)
+  window.addEventListener('keydown', function (e) {
+    var step = e.shiftKey ? 200 : 60;
+    if (e.key === 'ArrowLeft')  { x = clamp(x + step, minX, maxX); apply(); }
+    if (e.key === 'ArrowRight') { x = clamp(x - step, minX, maxX); apply(); }
+  });
+
+  window.addEventListener('resize', function () { layout(false); });
+  window.addEventListener('orientationchange', function () { layout(true); });
+
+  if (img.complete && img.naturalWidth) {
+    layout(true);
+  } else {
+    img.addEventListener('load', function () { layout(true); });
+  }
+})();
+</script>
+
+</body>
+</html>

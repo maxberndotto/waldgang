@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex">
+<title>&#8203;</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,900;1,9..144,400&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #ffffff;
+    --ink: #0b0b0b;
+    --soft: rgba(11,11,11,0.55);
+    --faint: rgba(11,11,11,0.3);
+    --rule: rgba(11,11,11,0.14);
+    --live: #c8452e;
+    --display: "Fraunces", Georgia, serif;
+    --body: "Inter", system-ui, sans-serif;
+    --mono: "Space Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+    background: var(--paper); color: var(--ink);
+    overscroll-behavior: none; -webkit-user-select: none; user-select: none;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    font-family: var(--body);
+  }
+
+  /* Bühne, in der der Stack in 3D lebt */
+  #scene {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    perspective: 2000px;
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  #stack {
+    position: relative;
+    transform-style: preserve-3d;
+    /* Größe wird per JS an Viewport angepasst */
+    will-change: transform;
+  }
+
+  .layer {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+  }
+  .layer img {
+    display: block; width: 100%; height: 100%;
+    object-fit: cover;
+    -webkit-user-drag: none; pointer-events: none;
+  }
+
+  /* Label je Ebene — erscheint mit dem Auffächern */
+  .tag {
+    position: absolute; left: 0; top: 50%;
+    transform: translateY(-50%);
+    padding-left: 14px;
+    border-left: 2px solid var(--live);
+    opacity: 0; pointer-events: none;
+    white-space: nowrap;
+    will-change: opacity, transform;
+  }
+  .tag .name {
+    font-family: var(--display); font-weight: 600; font-size: 20px;
+    line-height: 1; letter-spacing: -0.01em; display: block;
+  }
+  .tag .meta {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--soft); margin-top: 6px; display: block;
+  }
+  .tag .meta .src { color: var(--live); }
+
+  /* ---- Chrome ---- */
+  #titlecard {
+    position: fixed; left: 24px; top: 22px; z-index: 40; max-width: 40ch;
+    transition: opacity 0.4s ease;
+  }
+  #titlecard .kick {
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--faint); margin: 0 0 8px;
+  }
+  #titlecard h1 {
+    font-family: var(--display); font-weight: 900; font-size: clamp(28px, 4vw, 52px);
+    line-height: 0.98; letter-spacing: -0.02em; margin: 0;
+  }
+  #titlecard h1 em { font-weight: 300; font-style: italic; }
+
+  /* Regler unten */
+  #console {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+    z-index: 40; width: min(560px, 84vw);
+    background: rgba(255,255,255,0.82); backdrop-filter: blur(8px);
+    border: 1px solid var(--rule); padding: 14px 18px 16px;
+  }
+  #console .row { display: flex; align-items: center; gap: 14px; }
+  #console input[type=range] { flex: 1; accent-color: var(--live); height: 3px; }
+  #console .pct {
+    font-family: var(--mono); font-size: 12px; font-weight: 700; min-width: 96px; text-align: right;
+  }
+  #console .pct .w { color: var(--live); }
+  #console .caption {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--soft); margin-top: 10px; text-align: center; min-height: 12px;
+    transition: opacity 0.2s ease;
+  }
+
+  #impressum {
+    position: fixed; right: 20px; bottom: 22px; z-index: 40;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink); opacity: 0.4; text-decoration: none; transition: opacity 0.2s ease;
+  }
+  #impressum:hover, #impressum:focus-visible { opacity: 1; outline: none; }
+
+  @media (max-width: 600px) {
+    .tag .name { font-size: 15px; }
+    #titlecard { max-width: 24ch; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .layer, .tag { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="scene">
+  <div id="stack"></div>
+</div>
+
+<div id="titlecard">
+  <p class="kick">dekonstruktion &middot; erster aufschlag</p>
+  <h1>Woraus ein Bild<br><em>gemacht ist</em></h1>
+</div>
+
+<div id="console">
+  <div class="row">
+    <input id="slider" type="range" min="0" max="100" value="0">
+    <div class="pct"><span class="w" id="pct">0</span>% zerlegt</div>
+  </div>
+  <div class="caption" id="caption">ziehen, um das bild in seine gewerke zu trennen</div>
+</div>
+
+<a id="impressum" href="impressum.html">Impressum</a>
+
+<script>
+/* ============================================================
+   MAGAZIN — DEKONSTRUKTION
+   Der Stack folgt MASTER.psd (unten -> oben).
+   Ein Regler (0..100) faechert die Ebenen auf: von oben
+   (Print Finish) nach unten (Background). Jede Ebene traegt
+   Name + Quelle/KI. Echte PNGs spaeter in /layers tauschen.
+   ============================================================ */
+
+// Reihenfolge = Compositing (Index 0 = ganz unten/hinten)
+var LAYERS = [
+  { file:"01_background.png",    name:"Background",   src:"Archiv",          note:"Hof, Wand, Fundament" },
+  { file:"02_garden.png",        name:"Garden",       src:"Archiv + Hand",   note:"Schlauch, Trommel, Schotter" },
+  { file:"03_crowd.png",         name:"Crowd",        src:"Archiv",          note:"Menge, Haupt- und Nebenfiguren" },
+  { file:"04_hero.png",          name:"Hero",         src:"Archiv",          note:"der springende Moment" },
+  { file:"05_props.png",         name:"Props",        src:"Firefly",         note:"Tisch, St\u00fchle, Dosen" },
+  { file:"06_flying_props.png",  name:"Flying Props", src:"Kling",           note:"was durch die Luft geht" },
+  { file:"07_blossoms.png",      name:"Blossoms",     src:"Firefly",         note:"Kirschbl\u00fcte, vorn und hinten" },
+  { file:"08_fx.png",            name:"FX",           src:"Kling + Hand",    note:"Partikel, rieselnde Bl\u00e4tter" },
+  { file:"09_print_finish.png",  name:"Print Finish", src:"Hand",            note:"Grade, Korn, der finale Look" }
+];
+
+// Original-Proportionen des Bildes (A4 quer / Centerfold)
+var IMG_RATIO = 1672 / 941;
+
+(function () {
+  var isMobile = (function () {
+    var ua = /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent);
+    var coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    return ua || (coarse && navigator.maxTouchPoints > 0);
+  })();
+  document.documentElement.dataset.device = isMobile ? 'mobile' : 'desktop';
+
+  var scene = document.getElementById('scene');
+  var stack = document.getElementById('stack');
+  var slider = document.getElementById('slider');
+  var pct = document.getElementById('pct');
+  var caption = document.getElementById('caption');
+  var titlecard = document.getElementById('titlecard');
+
+  var N = LAYERS.length;
+  var els = [];
+
+  // Ebenen bauen
+  LAYERS.forEach(function (L, i) {
+    var el = document.createElement('div');
+    el.className = 'layer';
+    el.innerHTML =
+      '<img src="layers/' + L.file + '" alt="">' +
+      '<div class="tag">' +
+        '<span class="name">' + L.name + '</span>' +
+        '<span class="meta"><span class="src">' + L.src + '</span> &middot; ' + L.note + '</span>' +
+      '</div>';
+    stack.appendChild(el);
+    els.push({ el: el, tag: el.querySelector('.tag'), data: L });
+  });
+
+  // Stack-Größe an Viewport anpassen (Bild bleibt vollständig sichtbar)
+  var W = 0, H = 0;
+  function fit() {
+    var availW = scene.clientWidth * (isMobile ? 0.92 : 0.66);
+    var availH = scene.clientHeight * 0.66;
+    W = availW; H = W / IMG_RATIO;
+    if (H > availH) { H = availH; W = H * IMG_RATIO; }
+    stack.style.width = W + 'px';
+    stack.style.height = H + 'px';
+    render();
+  }
+
+  // Kernstück: der Abbau.
+  // p = 0..1. Ebenen fächern von OBEN (letzter Index) nach UNTEN auf.
+  // Jede Ebene i bekommt eine eigene "Aufbruch-Schwelle", sequenziell.
+  function render() {
+    var p = +slider.value / 100;
+    pct.textContent = Math.round(p * 100);
+
+    // Titlecard tritt beim Zerlegen zurück
+    titlecard.style.opacity = (1 - p * 1.3).toFixed(3);
+
+    // wie weit ist das Auffächern insgesamt gediehen (für Caption)
+    var topName = null;
+
+    for (var i = 0; i < N; i++) {
+      var rec = els[i];
+      // Ebenen von oben (i = N-1) lösen sich zuerst.
+      // Position im Auffächer: 0 (oberste) .. 1 (unterste, Background)
+      var order = (N - 1 - i); // 0 = Print Finish zuerst
+      // lokaler Fortschritt dieser Ebene, gestaffelt über p
+      var span = 1 / N;
+      var start = order * span * 0.75; // Überlappung, damit es fließt
+      var lp = clamp((p - start) / (span + 0.25), 0, 1);
+
+      // Auffächern: vertikaler Versatz + Tiefe (z) + leichte Neigung
+      var spread = (i - (N - 1) / 2); // zentriert um die Mitte
+      var ty = spread * H * 0.14 * lp;         // vertikal spreizen
+      var tz = (i - (N - 1)) * 60 * lp;        // obere Ebenen nach vorn
+      var tx = spread * 22 * lp;               // leichte horizontale Staffelung
+      var rot = -8 * lp;                        // die ganze Platte kippt leicht weg
+
+      rec.el.style.transform =
+        'translate3d(' + tx + 'px,' + ty + 'px,' + tz + 'px)';
+
+      // Labels erscheinen, sobald die Ebene sich merklich gelöst hat
+      var tagOn = lp > 0.15 ? clamp((lp - 0.15) / 0.4, 0, 1) : 0;
+      rec.tag.style.opacity = tagOn;
+      rec.tag.style.transform = 'translateY(-50%) translateX(' + (-20 + tagOn * 20) + 'px)';
+      rec.tag.style.left = 'calc(100% + 24px)';
+
+      if (lp > 0.1 && lp < 0.95) topName = rec.data.name;
+    }
+
+    // Gesamte Platte leicht in den Raum kippen, wenn zerlegt
+    stack.style.transform = 'rotateY(' + (p * 22) + 'deg) rotateX(' + (p * 6) + 'deg)';
+
+    // Caption
+    if (p < 0.02) caption.textContent = 'ziehen, um das bild in seine gewerke zu trennen';
+    else if (p > 0.97) caption.textContent = 'neun gewerke \u00b7 von der oberfl\u00e4che bis zum grund';
+    else if (topName) caption.textContent = 'l\u00f6st sich: ' + topName;
+    else caption.textContent = '';
+  }
+
+  function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+  slider.addEventListener('input', render);
+
+  // Mausrad/Trackpad steuert den Regler ebenfalls (Desktop)
+  scene.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var d = (Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX);
+    slider.value = clamp(+slider.value + d * 0.15, 0, 100);
+    render();
+  }, { passive: false });
+
+  // Touch-Drag auf der Bühne = Regler (vertikal)
+  var dragY = null, dragStart = 0;
+  scene.addEventListener('pointerdown', function (e) { dragY = e.clientY; dragStart = +slider.value; });
+  scene.addEventListener('pointermove', function (e) {
+    if (dragY === null) return;
+    var dy = dragY - e.clientY;
+    slider.value = clamp(dragStart + dy * 0.25, 0, 100);
+    render();
+  });
+  window.addEventListener('pointerup', function () { dragY = null; });
+
+  window.addEventListener('keydown', function (e) {
+    var s = e.shiftKey ? 12 : 4;
+    if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { slider.value = clamp(+slider.value + s, 0, 100); render(); }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { slider.value = clamp(+slider.value - s, 0, 100); render(); }
+    if (e.key === '0' || e.key === 'Home') { slider.value = 0; render(); }
+  });
+
+  window.addEventListener('resize', fit);
+  window.addEventListener('orientationchange', fit);
+
+  fit();
+})();
+</script>
+
+</body>
+</html>

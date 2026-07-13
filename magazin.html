@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex">
+<title>&#8203;</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,900;1,9..144,400&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #ffffff;
+    --ink: #0b0b0b;
+    --ink-soft: rgba(11,11,11,0.55);
+    --ink-faint: rgba(11,11,11,0.32);
+    --rule: rgba(11,11,11,0.14);
+    --rule-hair: rgba(11,11,11,0.09);
+    --display: "Fraunces", Georgia, "Times New Roman", serif;
+    --body: "Inter", system-ui, -apple-system, sans-serif;
+    --mono: "Space Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+    background: var(--paper); color: var(--ink);
+    overscroll-behavior: none; touch-action: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  #viewport { position: fixed; inset: 0; overflow: hidden; cursor: grab; background: var(--paper); }
+  #viewport.dragging { cursor: grabbing; }
+  #canvas { position: absolute; top: 0; left: 0; width: 1px; height: 1px; will-change: transform; transform-origin: 0 0; }
+  #grid { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+  .piece { position: absolute; z-index: 1; }
+  .kicker {
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-faint);
+    display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+  }
+  .kicker::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+  .kicker.no-rule::after { display: none; }
+  .headline {
+    font-family: var(--display); font-weight: 900; font-optical-sizing: auto;
+    line-height: 0.94; letter-spacing: -0.02em; margin: 0;
+  }
+  .headline .light { font-weight: 300; font-style: italic; letter-spacing: 0; }
+  .standfirst {
+    font-family: var(--display); font-weight: 300; font-style: italic;
+    line-height: 1.32; color: var(--ink); margin: 18px 0 0; max-width: 30ch;
+  }
+  .body { font-family: var(--body); font-weight: 400; font-size: 15px; line-height: 1.62; color: var(--ink); max-width: 34ch; }
+  .body.small { font-size: 13px; max-width: 30ch; color: var(--ink-soft); }
+  .pull { font-family: var(--display); font-weight: 600; line-height: 1.14; letter-spacing: -0.015em; margin: 0; max-width: 18ch; }
+  .pull .mark { color: var(--ink-faint); }
+  .body .drop { float: left; font-family: var(--display); font-weight: 900; font-size: 3.4em; line-height: 0.72; padding: 6px 10px 0 0; }
+  .apparat { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint); }
+  .figure img, .figure video { display: block; width: 100%; height: auto; }
+  .figure figcaption {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; color: var(--ink-soft);
+    margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; gap: 12px;
+  }
+  .figure figcaption .credit { color: var(--ink-faint); white-space: nowrap; }
+  .framed { border-top: 2px solid var(--ink); padding-top: 14px; }
+  #threads { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; z-index: 0; }
+  #threads line { stroke: var(--rule); stroke-width: 1; stroke-dasharray: 2 4; }
+  #corner {
+    position: fixed; left: 18px; top: 16px; z-index: 50;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-faint); line-height: 1.6;
+  }
+  #impressum {
+    position: fixed; right: 18px; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    z-index: 50; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink); opacity: 0.4; text-decoration: none; transition: opacity 0.2s ease;
+  }
+  #impressum:hover, #impressum:focus-visible { opacity: 1; outline: none; }
+  #recenter {
+    position: fixed; left: 18px; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    z-index: 50; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink); opacity: 0; pointer-events: none;
+    background: none; border: none; padding: 0; cursor: pointer; transition: opacity 0.25s ease;
+  }
+  #recenter.show { opacity: 0.4; pointer-events: auto; }
+  #recenter.show:hover { opacity: 1; }
+  @media (max-width: 640px) { #corner { font-size: 9px; } }
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="grid"></div>
+  <div id="canvas"><svg id="threads"></svg></div>
+</div>
+<div id="corner">human &times; artificial<br><span id="stamp"></span></div>
+<button id="recenter">&larr; anfang</button>
+<a id="impressum" href="impressum.html">Impressum</a>
+<script>
+var PIECES = [
+  { id:"aufmacher", x:-300, y:-260, w:620, html:
+    '<div class="kicker">erster aufschlag</div>' +
+    '<h1 class="headline" style="font-size:clamp(48px,7vw,104px)">Ein Raum,<br><span class="light">der mitdenkt</span></h1>' +
+    '<p class="standfirst" style="font-size:clamp(18px,2.2vw,26px)">Kein fertiges Heft. Ein Magazin, das mit der Zeit w\u00e4chst \u2014 zwischen dem, was ein Mensch denkt, und dem, was eine Maschine daraus macht.</p>' },
+  { id:"leitartikel", x:-300, y:130, w:340, html:
+    '<div class="kicker">zum geleit</div>' +
+    '<p class="body"><span class="drop">H</span>eute ist der erste Tag. Was hier steht, stammt aus dem Alltag oder entsteht im Gespr\u00e4ch \u2014 und l\u00e4uft am Ende immer durch dieselbe Verarbeitung. Die Fl\u00e4che ist grenzenlos, das Denken auch.<br><br>Ziehen Sie in jede Richtung. Es gibt keinen Rand, nur Weite.</p>' +
+    '<div class="apparat" style="margin-top:16px">Ziehen \u00b7 Scrollen \u00b7 Pfeiltasten</div>' },
+  { id:"figure-cf", x:120, y:120, w:300, html:
+    '<figure class="figure"><img src="assets/cf_frag.jpg" alt=""><figcaption><span>Centerfold, Ausschnitt</span><span class="credit">Foto \u2014 Archiv</span></figcaption></figure>' },
+  { id:"pull", x:500, y:-180, w:460, html:
+    '<div class="kicker no-rule">these</div>' +
+    '<p class="pull" style="font-size:clamp(30px,4vw,56px)"><span class="mark">\u201c</span>Die Reibung zwischen Mensch und Maschine ist nicht das Problem. Sie ist der Inhalt.<span class="mark">\u201d</span></p>' },
+  { id:"keinbock", x:520, y:180, w:420, html:
+    '<div class="kicker">aus dem platzhalter</div>' +
+    '<h2 class="headline" style="font-size:clamp(40px,5.5vw,82px)">Kein Bock<br>auf Kaffee<br><span class="light">&amp; Kuchen</span></h2>' +
+    '<p class="body small" style="margin-top:16px">Der erste Satz dieser Ver\u00f6ffentlichung stand schon da, bevor es sie gab: scroll-gekoppelte Typo, wei\u00df auf einem Foto. So f\u00e4ngt alles an.</p>' },
+  { id:"kroko", x:60, y:560, w:300, html:
+    '<figure class="figure"><video autoplay muted loop playsinline aria-hidden="true"><source src="assets/krokodil.webm" type="video/webm"><source src="assets/krokodil.mp4" type="video/mp4"></video><figcaption><span>El Gu\u00eda, wartet</span><span class="credit">Bewegtbild</span></figcaption></figure>' },
+  { id:"kroko-text", x:450, y:600, w:320, html:
+    '<div class="kicker">notiz</div>' +
+    '<p class="body">Ein unsterblicher Reisef\u00fchrer, der alle hat kommen und gehen sehen. Vielleicht das wiederkehrende Motiv dieses Magazins \u2014 die Figur, die bleibt, w\u00e4hrend die Ausgaben sich \u00fcberschreiben.</p>' },
+  { id:"colophon", x:-320, y:560, w:260, html:
+    '<div class="framed"><div class="apparat" style="line-height:1.8">Ausgabe im Werden<br>w\u00e4chst fortlaufend<br>Redaktion: Mensch &amp; Maschine</div></div>' }
+];
+var THREADS = [ ["aufmacher","pull"], ["figure-cf","keinbock"], ["kroko","kroko-text"] ];
+
+(function () {
+  var isMobile = (function () {
+    var ua = /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent);
+    var coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    return ua || (coarse && navigator.maxTouchPoints > 0);
+  })();
+  document.documentElement.dataset.device = isMobile ? 'mobile' : 'desktop';
+  var viewport = document.getElementById('viewport');
+  var canvas = document.getElementById('canvas');
+  var gridEl = document.getElementById('grid');
+  var threadsSvg = document.getElementById('threads');
+  var recenterBtn = document.getElementById('recenter');
+  var stampEl = document.getElementById('stamp');
+  try { stampEl.textContent = new Date().toISOString().slice(0,10); } catch(e){}
+  var GRID = 40;
+  var camX = 0, camY = 0, dragging = false, lastX = 0, lastY = 0, vx = 0, vy = 0, rafId = null;
+  var pieceEls = {};
+  function vw(){ return viewport.clientWidth; }
+  function vh(){ return viewport.clientHeight; }
+  gridEl.style.backgroundImage = 'linear-gradient(var(--rule-hair) 1px, transparent 1px),linear-gradient(90deg, var(--rule-hair) 1px, transparent 1px)';
+  gridEl.style.backgroundSize = (GRID*4)+'px '+(GRID*4)+'px,'+(GRID*4)+'px '+(GRID*4)+'px';
+  function buildPieces() {
+    PIECES.forEach(function(p){
+      var el = document.createElement('div'); el.className='piece'; el.id='piece-'+p.id;
+      if (p.w) el.style.width = p.w+'px'; el.innerHTML = p.html;
+      canvas.appendChild(el); pieceEls[p.id]=el;
+    });
+  }
+  function placePieces() {
+    PIECES.forEach(function(p){ var el=pieceEls[p.id]; if(el) el.style.transform='translate('+p.x+'px,'+p.y+'px)'; });
+  }
+  function buildThreads() {
+    var s=''; THREADS.forEach(function(pair){
+      var a=PIECES.find(function(n){return n.id===pair[0];});
+      var b=PIECES.find(function(n){return n.id===pair[1];});
+      if(!a||!b)return;
+      var ax=a.x+(a.w?a.w/2:0), ay=a.y+40, bx=b.x+(b.w?b.w/2:0), by=b.y+40;
+      s+='<line x1="'+ax+'" y1="'+ay+'" x2="'+bx+'" y2="'+by+'"></line>';
+    });
+    threadsSvg.innerHTML=s; threadsSvg.style.overflow='visible';
+  }
+  function render() {
+    var ox=vw()/2-camX, oy=vh()/2-camY;
+    canvas.style.transform='translate('+ox+'px,'+oy+'px)';
+    var gx=ox%(GRID*4), gy=oy%(GRID*4);
+    gridEl.style.backgroundPosition=gx+'px '+gy+'px,'+gx+'px '+gy+'px';
+    var far=Math.abs(camX)>vw()*0.55||Math.abs(camY)>vh()*0.55;
+    recenterBtn.classList.toggle('show', far);
+  }
+  function momentum() {
+    vx*=0.93; vy*=0.93;
+    if(Math.abs(vx)<0.15&&Math.abs(vy)<0.15){rafId=null;return;}
+    camX-=vx; camY-=vy; render(); rafId=requestAnimationFrame(momentum);
+  }
+  function onDown(e){ dragging=true; viewport.classList.add('dragging'); lastX=e.clientX; lastY=e.clientY; vx=0; vy=0; if(rafId){cancelAnimationFrame(rafId);rafId=null;} viewport.setPointerCapture&&viewport.setPointerCapture(e.pointerId); }
+  function onMove(e){ if(!dragging)return; var dx=e.clientX-lastX, dy=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; vx=dx; vy=dy; camX-=dx; camY-=dy; render(); }
+  function onUp(){ if(!dragging)return; dragging=false; viewport.classList.remove('dragging'); if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){rafId=requestAnimationFrame(momentum);} }
+  viewport.addEventListener('pointerdown', onDown);
+  viewport.addEventListener('pointermove', onMove);
+  viewport.addEventListener('pointerup', onUp);
+  viewport.addEventListener('pointercancel', onUp);
+  viewport.addEventListener('lostpointercapture', onUp);
+  viewport.addEventListener('wheel', function(e){
+    e.preventDefault();
+    if(rafId){cancelAnimationFrame(rafId);rafId=null;vx=0;vy=0;}
+    var dx=e.deltaX, dy=e.deltaY;
+    if(e.deltaMode===1){dx*=16;dy*=16;} else if(e.deltaMode===2){dx*=vw();dy*=vh();}
+    camX+=dx; camY+=dy; render();
+  }, { passive:false });
+  function animateTo(tx,ty){
+    if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+    if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){camX=tx;camY=ty;render();return;}
+    (function step(){
+      camX+=(tx-camX)*0.14; camY+=(ty-camY)*0.14; render();
+      if(Math.abs(tx-camX)>0.5||Math.abs(ty-camY)>0.5){requestAnimationFrame(step);}
+      else{camX=tx;camY=ty;render();}
+    })();
+  }
+  recenterBtn.addEventListener('click', function(){ animateTo(0,0); });
+  window.addEventListener('keydown', function(e){
+    var s=e.shiftKey?260:90;
+    if(e.key==='ArrowLeft'){camX-=s;render();}
+    if(e.key==='ArrowRight'){camX+=s;render();}
+    if(e.key==='ArrowUp'){camY-=s;render();}
+    if(e.key==='ArrowDown'){camY+=s;render();}
+    if(e.key==='Home'||e.key==='0'){animateTo(0,0);}
+  });
+  window.addEventListener('resize', render);
+  window.addEventListener('orientationchange', render);
+  buildPieces(); placePieces(); buildThreads(); render();
+})();
+</script>
+</body>
+</html>
