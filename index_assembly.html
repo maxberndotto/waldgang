@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>&#8203;</title>
+<style>
+  /* Poppins Thin — lokal gehostet (DSGVO-konform, kein externer Request) */
+  @font-face{
+    font-family:"Poppins";font-style:normal;font-weight:100;font-display:swap;
+    src:url("fonts/poppins-thin-latin.woff2") format("woff2");
+    unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+  }
+  @font-face{
+    font-family:"Poppins";font-style:normal;font-weight:100;font-display:swap;
+    src:url("fonts/poppins-thin-latin-ext.woff2") format("woff2");
+    unicode-range:U+0100-024F,U+0259,U+1E00-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;
+  }
+  :root{ --paper:#ffffff; }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:var(--paper);
+    overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-font-smoothing:antialiased;}
+
+  /* ===== CENTERFOLD ===== */
+  #stage{position:fixed;inset:0;width:100vw;height:100dvh;overflow:hidden;cursor:grab;background:#fff;z-index:20;}
+  #stage.dragging{cursor:grabbing;}
+  #centerfold{position:absolute;top:0;left:0;height:100%;width:auto;max-width:none;display:block;
+    will-change:transform;pointer-events:none;-webkit-user-drag:none;transform-origin:0 0;}
+  .typo{position:absolute;top:50%;left:0;margin:0;white-space:nowrap;
+    font-family:"Poppins","Helvetica Neue",Helvetica,Arial,sans-serif;font-weight:100;color:#fff;
+    line-height:1.0;letter-spacing:0.02em;text-transform:uppercase;text-align:center;pointer-events:none;
+    will-change:transform;visibility:hidden;}
+  #typoLeft{font-size:clamp(2.6rem,11vw,11rem);}
+  #typoRight{font-size:clamp(2.2rem,9vw,9rem);}
+
+  #cue{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(8px);z-index:30;opacity:0;
+    transition:opacity .5s ease, transform .5s ease;font-family:ui-monospace,"Space Mono",monospace;
+    font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:#fff;pointer-events:none;text-shadow:0 1px 6px rgba(0,0,0,.35);}
+  #cue.on{opacity:.85;transform:translateX(-50%) translateY(0);}
+  #cue .arrow{display:block;text-align:center;margin-top:8px;font-size:14px;animation:bob 1.6s ease-in-out infinite;}
+  @keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(5px);}}
+  #gate{position:fixed;left:20px;bottom:22px;z-index:30;display:flex;gap:7px;opacity:.5;pointer-events:none;}
+  #gate i{width:7px;height:7px;border-radius:50%;background:#fff;opacity:.35;box-shadow:0 1px 4px rgba(0,0,0,.35);
+    transition:opacity .25s ease, transform .25s ease;}
+  #gate i.lit{opacity:1;transform:scale(1.25);}
+
+  /* ===== MONTAGE + FINALE ===== */
+  #assembly{position:fixed;inset:0;width:100vw;height:100dvh;overflow:hidden;z-index:10;background:#fff;visibility:hidden;}
+  #assembly .frame{position:absolute;top:50%;left:50%;will-change:transform;}
+  #assembly img{position:absolute;top:0;left:0;width:100%;height:100%;will-change:transform,opacity;display:block;}
+  #finalPhoto{clip-path:inset(100% 0 0 0);-webkit-clip-path:inset(100% 0 0 0);} /* von unten aufgedeckt */
+
+  #gartenText{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:15;
+    width:min(56vw,720px);text-align:center;pointer-events:none;visibility:hidden;
+    font-family:Georgia,"Fraunces",serif;font-style:italic;font-weight:400;color:#f6f2ea;
+    line-height:1.42;font-size:clamp(1.02rem,2.7vw,1.9rem);letter-spacing:0.012em;
+    text-shadow:0 1px 14px rgba(0,0,0,.5), 0 0 2px rgba(0,0,0,.5);will-change:transform;}
+  #gartenText .g1{opacity:0;}
+  #gartenText .g2{opacity:0;}
+
+  #impressum{position:fixed;right:16px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:60;
+    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:11px;font-weight:500;letter-spacing:0.06em;
+    text-transform:uppercase;color:#fff;opacity:.55;text-decoration:none;transition:opacity .2s ease;}
+  #impressum:hover,#impressum:focus-visible{opacity:1;outline:none;}
+  @media (prefers-reduced-motion:reduce){#assembly img{transition:none!important;}}
+</style>
+</head>
+<body>
+
+<div id="assembly">
+  <div class="frame" id="frame">
+    <!-- Einfahr-/Z-Ordnung: 01 Grund, 03 Stühle, 02 Tisch, 04 Stuhl -->
+    <img id="L01" src="seq/01_garten.png" alt="">
+    <img id="L03" src="seq/03_garten.png" alt="">
+    <img id="L02" src="seq/02_garten.png" alt="">
+    <img id="L04" src="seq/04_garten.png" alt="">
+    <img id="finalPhoto" src="seq/00_garten.png" alt="">
+  </div>
+</div>
+
+<div id="gartenText">
+  <span class="g1">Der Garten &hellip;</span> <span class="g2">ist der Ort, an den man sich zur&uuml;ckzieht, wenn die Geschichte zu laut wird &hellip;</span>
+</div>
+
+<div id="stage">
+  <img id="centerfold" src="assets/centerfold.jpg" alt="" draggable="false">
+  <div class="typo" id="typoLeft">KEIN BOCK</div>
+  <div class="typo" id="typoRight">AUF KAFFEE<br>&amp; KUCHEN</div>
+</div>
+
+<div id="gate"><i></i><i></i></div>
+<div id="cue">weiter nach unten<span class="arrow">&#8595;</span></div>
+<a id="impressum" href="impressum.html">Impressum</a>
+
+<script>
+(function(){
+  var isMobile=(function(){
+    var ua=/Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent);
+    var coarse=window.matchMedia&&window.matchMedia('(pointer: coarse)').matches;
+    return ua||(coarse&&navigator.maxTouchPoints>0);
+  })();
+
+  var stage=document.getElementById('stage');
+  var img=document.getElementById('centerfold');
+  var typoLeft=document.getElementById('typoLeft');
+  var typoRight=document.getElementById('typoRight');
+  var gateEl=document.getElementById('gate');
+  var gateDots=gateEl.querySelectorAll('i');
+  var cue=document.getElementById('cue');
+  var assembly=document.getElementById('assembly');
+  var frame=document.getElementById('frame');
+  var finalPhoto=document.getElementById('finalPhoto');
+  var gartenText=document.getElementById('gartenText');
+  var g1=gartenText.querySelector('.g1');
+  var g2=gartenText.querySelector('.g2');
+  var L=[document.getElementById('L01'),document.getElementById('L03'),
+         document.getElementById('L02'),document.getElementById('L04')];
+
+  var IMG_RATIO=1700/957;
+  function clamp(v,lo,hi){return v<lo?lo:(v>hi?hi:v);}
+  function ease(t){return t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;}
+  function easeOut(t){return 1-Math.pow(1-t,3);}
+  function easeOutBack(t){var s=1.10;return 1+(s+1)*Math.pow(t-1,3)+s*Math.pow(t-1,2);}
+
+  var vw=0,vh=0,iw=0,ih=0,minX=0,maxX=0,centerX=0,yNeutral=0;
+  var x=0,dragging=false,lastPX=0,vx=0,rafId=null,wLeft=0,wRight=0;
+
+  /* Gate 1x hin und her (per Ziehen ODER Scrollrad-horizontal) */
+  var SWEEPS_REQUIRED=2,reachedEnd=0,lastEnd=0,gateOpen=false;
+  function setGateDots(){var lit=Math.min(reachedEnd,SWEEPS_REQUIRED);
+    for(var i=0;i<gateDots.length;i++)gateDots[i].classList.toggle('lit',i<lit);}
+  function registerEnd(side){if(side===lastEnd)return;lastEnd=side;reachedEnd++;setGateDots();
+    if(reachedEnd>=SWEEPS_REQUIRED&&!gateOpen){gateOpen=true;cue.classList.add('on');}}
+
+  /* Runter-Achse P: 0=Centerfold, 0..1 Montage, 1..2 Satz, 2..3 Überblendung */
+  var P=0,targetP=0,animRAF=null,locked=false;
+  var MAX_P=1;               // erst 1; nach 1x auf/ab -> 3
+  var floorP=0;
+  var reachedFull=false, armed=false;
+
+  function measureTypo(){wLeft=typoLeft.offsetWidth;wRight=typoRight.offsetWidth;
+    typoLeft.style.visibility='visible';typoRight.style.visibility='visible';}
+
+  function layout(recenter){
+    vw=stage.clientWidth;vh=stage.clientHeight;
+    var ratio=img.naturalWidth/img.naturalHeight;
+    iw=vh*ratio;ih=vh;var mf=isMobile?1.6:1.8;
+    if(iw<vw*mf){iw=vw*mf;ih=iw/ratio;}
+    img.style.height=ih+'px';
+    minX=vw-iw;maxX=0;centerX=(vw-iw)/2;yNeutral=(vh-ih)/2;
+    measureTypo();
+    x=recenter?clamp(centerX,minX,maxX):clamp(x,minX,maxX);
+    layoutAssembly();render();
+  }
+  function layoutAssembly(){
+    var W=window.innerWidth,H=window.innerHeight,fw,fh;
+    if(W/H>IMG_RATIO){fw=W;fh=W/IMG_RATIO;}else{fh=H;fw=H*IMG_RATIO;}
+    frame.style.width=fw+'px';frame.style.height=fh+'px';frame.style.transform='translate(-50%,-50%)';frame._fh=fh;
+  }
+  function typoByPan(){
+    var pL=0,pR=0;
+    if(centerX-minX>0)pL=clamp((centerX-x)/(centerX-minX),0,1);
+    if(maxX-centerX>0)pR=clamp((x-centerX)/(maxX-centerX),0,1);
+    var startL=-wLeft/2,cL=startL+pL*(vw/2-startL);
+    typoLeft.style.transform='translate('+(cL-wLeft/2)+'px,-50%)';
+    var startR=vw+wRight/2,cR=startR+pR*(vw/2-startR);
+    typoRight.style.transform='translate('+(cR-wRight/2)+'px,-50%)';
+  }
+
+  var WIN=[{from:'top',a:0.00,b:0.30},{from:'bottom',a:0.26,b:0.52},
+           {from:'bottom',a:0.48,b:0.74},{from:'bottom',a:0.70,b:0.98}];
+  function renderAssembly(Pa){
+    var fh=frame._fh||window.innerHeight,off=fh*5.5,amp=fh*0.016;
+    for(var i=0;i<WIN.length;i++){
+      var w=WIN[i],lp=clamp((Pa-w.a)/(w.b-w.a),0,1);
+      // Hauptweg: Ebene ist bei lp=0.86 zuhause (danach nur noch Ausschwingen)
+      var pin=clamp(lp/0.86,0,1);
+      var e=easeOut(pin);
+      var ty=(w.from==='top'?-off:off)*(1-e);
+      // leichtes Nachfedern: um die Nulllinie, gedämpft, endet bei lp=1 exakt auf 0
+      if(lp>0.86){
+        var u=(lp-0.86)/0.14;
+        var spring=Math.sin(u*Math.PI*1.5)*Math.pow(1-u,1.6)*amp;
+        ty += (w.from==='top'? 1 : -1)*spring;   // erst leicht übers Ziel, dann zurück
+      }
+      L[i].style.transform='translateY('+ty+'px)';
+      L[i].style.opacity=(lp<=0?0:1);
+    }
+  }
+
+  function render(){
+    if(locked) return;
+    img.style.transform='translate('+x+'px,'+yNeutral+'px)';
+
+    if(P<=0.001){
+      assembly.style.visibility='hidden';
+      gartenText.style.visibility='hidden';
+      g1.style.opacity=0;g2.style.opacity=0;
+      finalPhoto.style.clipPath='inset(100% 0 0 0)';finalPhoto.style.webkitClipPath='inset(100% 0 0 0)';
+      stage.style.opacity=1;stage.style.pointerEvents='auto';
+      cue.classList.toggle('on', gateOpen);      // Hinweis am Centerfold, wenn Gate offen
+      typoByPan();
+      var tol=4;
+      if(x<=minX+tol)registerEnd(-1);else if(x>=maxX-tol)registerEnd(1);
+      floorP=0;
+      return;
+    }
+
+    // ---- Montage / Finale ----
+    assembly.style.visibility='visible';
+    cue.classList.remove('on');                 // Hinweis blendet beim Aufbau aus
+    var fade=easeOut(clamp(P/0.12,0,1));
+    stage.style.opacity=(1-fade);stage.style.pointerEvents='none';
+
+    var Pa=clamp(P,0,1);
+    renderAssembly(Pa);
+    if(Pa>=0.99) reachedFull=true;
+    if(reachedFull && P<=0.05 && !armed){ armed=true; MAX_P=3; reachedFull=false; }
+
+    // Satz (P 1..2) — Zeitlupe, sanftes Ein-Opazieren + leichter Nachfeder-Drift
+    if(P>1){
+      gartenText.style.visibility='visible';
+      var t1=clamp((P-1.00)/0.30,0,1);  // "Der Garten …" (kurz verlangsamt)
+      var t2=clamp((P-1.34)/0.66,0,1);  // Rest
+      g1.style.opacity=easeOut(t1);
+      g2.style.opacity=easeOut(t2);
+      var tp=clamp((P-1.00)/1.0,0,1);
+      var drift=(1-easeOutBack(clamp(tp*1.08,0,1)))*12;   // 12px -> 0, setzt sich weich
+      gartenText.style.transform='translate(-50%,calc(-50% + '+drift+'px))';
+      if(P>1.02) floorP=Math.max(floorP,1);   // keine Chance nach oben, bis Satz steht
+    } else {
+      gartenText.style.visibility='hidden';
+      g1.style.opacity=0;g2.style.opacity=0;
+      gartenText.style.transform='translate(-50%,-50%)';
+    }
+
+    // Überblendung zu 00 von unten (P 2..3)
+    var cf=clamp((P-2)/1.0,0,1);
+    var topInset=(1-easeOut(cf))*100;
+    finalPhoto.style.clipPath='inset('+topInset+'% 0 0 0)';
+    finalPhoto.style.webkitClipPath='inset('+topInset+'% 0 0 0)';
+    if(P>=2) floorP=Math.max(floorP,2);
+
+    if(P>=2.985 && !locked) locked=true;
+  }
+
+  /* Runter-Achse animieren */
+  function animateP(){
+    var d=targetP-P;
+    if(Math.abs(d)<0.0004){P=targetP;render();animRAF=null;return;}
+    P+=d*0.04;render();animRAF=requestAnimationFrame(animateP);
+  }
+  function nudgeP(delta){
+    if(locked) return;
+    targetP=clamp(targetP+delta,floorP,MAX_P);
+    if(!animRAF)animRAF=requestAnimationFrame(animateP);
+  }
+
+  /* ===== Centerfold horizontal: Ziehen ===== */
+  function onDown(e){if(P>0.02||locked)return;dragging=true;stage.classList.add('dragging');
+    lastPX=e.clientX;vx=0;if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+    stage.setPointerCapture&&stage.setPointerCapture(e.pointerId);}
+  function onMove(e){if(!dragging)return;var dx=e.clientX-lastPX;lastPX=e.clientX;vx=dx;
+    x=clamp(x+dx,minX,maxX);render();}
+  function onUp(){if(!dragging)return;dragging=false;stage.classList.remove('dragging');
+    if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches)rafId=requestAnimationFrame(momentum);}
+  function momentum(){vx*=0.94;if(Math.abs(vx)<0.1){rafId=null;return;}
+    x=clamp(x+vx,minX,maxX);render();rafId=requestAnimationFrame(momentum);}
+  stage.addEventListener('pointerdown',onDown);
+  stage.addEventListener('pointermove',onMove);
+  stage.addEventListener('pointerup',onUp);
+  stage.addEventListener('pointercancel',onUp);
+  stage.addEventListener('lostpointercapture',onUp);
+
+  /* ===== Scrollrad: wie bisher =====
+     Centerfold (P=0): horizontal übers Foto (öffnet Gate durch hin&her).
+     Gate offen + nach unten: Montage. In der Montage: vertikal scrubben. */
+  window.addEventListener('wheel',function(e){
+    e.preventDefault(); if(locked) return;
+    var dy=e.deltaY,dx=e.deltaX;
+    if(e.deltaMode===1){dy*=16;dx*=16;}else if(e.deltaMode===2){dy*=vw;dx*=vw;}
+    var vert=Math.abs(dy)>=Math.abs(dx);
+
+    if(P>0.001){
+      var d=vert?dy:dx;
+      var ref=Math.max(P,targetP);
+      var mult = ref>=1 ? (ref<1.28?0.0000733:0.0001167) : 0.0001767;
+      nudgeP(d*mult);
+      return;
+    }
+    if(gateOpen && vert && dy>0){
+      nudgeP(dy*0.0001767);
+      return;
+    }
+    // Centerfold horizontal
+    if(rafId){cancelAnimationFrame(rafId);rafId=null;vx=0;}
+    var delta=vert?dy:dx;
+    x=clamp(x-delta,minX,maxX);
+    render();
+  },{passive:false});
+
+  /* ===== Touch ===== */
+  var tX=null,tY=null;
+  window.addEventListener('touchstart',function(e){if(locked)return;tX=e.touches[0].clientX;tY=e.touches[0].clientY;},{passive:true});
+  window.addEventListener('touchmove',function(e){
+    if(tX===null||locked)return;
+    var nx=e.touches[0].clientX,ny=e.touches[0].clientY;
+    var dx=tX-nx,dy=tY-ny;tX=nx;tY=ny;
+    if(P>0.001){
+      var ref=Math.max(P,targetP);
+      var mult=ref>=1?(ref<1.28?0.0001:0.00016):0.0002433;
+      nudgeP(dy*mult);
+    } else if(gateOpen && dy>0 && Math.abs(dy)>Math.abs(dx)){
+      nudgeP(dy*0.0002433);
+    } else {
+      x=clamp(x-dx,minX,maxX);render();  // horizontal
+    }
+  },{passive:true});
+  window.addEventListener('touchend',function(){tX=null;tY=null;});
+
+  window.addEventListener('keydown',function(e){
+    if(locked)return;
+    if(P>0.001){
+      if(e.key==='ArrowDown')nudgeP(0.0067);
+      if(e.key==='ArrowUp')nudgeP(-0.0067);
+      return;
+    }
+    var step=e.shiftKey?200:60;
+    if(e.key==='ArrowLeft'){x=clamp(x+step,minX,maxX);render();}
+    if(e.key==='ArrowRight'){x=clamp(x-step,minX,maxX);render();}
+    if(e.key==='ArrowDown'&&gateOpen){nudgeP(0.0067);}
+  });
+
+  window.addEventListener('resize',function(){layout(false);});
+  window.addEventListener('orientationchange',function(){layout(true);});
+  function start(){layout(true);setGateDots();}
+  if(img.complete&&img.naturalWidth)start();else img.addEventListener('load',start);
+  // Nach dem Laden von Poppins Thin neu vermessen (Endpositionen exakt)
+  if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){layout(false);});}
+})();
+</script>
+</body>
+</html>

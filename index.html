@@ -6,92 +6,48 @@
 <title>&#8203;</title>
 <style>
   html, body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background: #fff;
-    overscroll-behavior: none;
-    touch-action: none;
-    -webkit-user-select: none;
-    user-select: none;
+    margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+    background:#fff; overscroll-behavior:none; touch-action:none;
+    -webkit-user-select:none; user-select:none;
   }
 
   #stage {
-    position: fixed;
-    inset: 0;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh; /* korrekte Höhe auf Mobilgeräten (Adressleiste) */
-    overflow: hidden;
-    cursor: grab;
-    background: #fff;
+    position:fixed; inset:0; width:100vw; height:100vh; height:100dvh;
+    overflow:hidden; cursor:grab; background:#fff;
   }
-  #stage.dragging { cursor: grabbing; }
+  #stage.dragging { cursor:grabbing; }
 
-  #centerfold {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: auto;
-    max-width: none;
-    display: block;
-    will-change: transform;
-    pointer-events: none;
-    -webkit-user-drag: none;
+  /* Parallax-Ebenen: gleiche Registrierung, unterschiedliche Tiefe */
+  .player {
+    position:absolute; top:0; left:0; height:100%; width:auto; max-width:none;
+    display:block; will-change:transform; pointer-events:none; -webkit-user-drag:none;
+    transform-origin:50% 50%; backface-visibility:hidden;
   }
 
   /* ---- Scroll-gebundene Typografie ---- */
   .typo {
-    position: absolute;
-    top: 50%;
-    left: 0;
-    margin: 0;
-    white-space: nowrap;
-    font-family: "Helvetica Neue", HelveticaNeue, "Helvetica Neue LT Std", Helvetica, "Arial Black", Arial, sans-serif;
-    font-weight: 900;
-    font-stretch: normal;
-    color: #fff;
-    line-height: 0.92;
-    letter-spacing: -0.02em;
-    text-transform: uppercase;
-    text-align: center;
-    pointer-events: none;
-    will-change: transform;
-    visibility: hidden; /* bis Layout steht */
+    position:absolute; top:50%; left:0; margin:0; white-space:nowrap;
+    font-family:"Helvetica Neue", HelveticaNeue, "Helvetica Neue LT Std", Helvetica, "Arial Black", Arial, sans-serif;
+    font-weight:900; font-stretch:normal; color:#fff; line-height:0.92; letter-spacing:-0.02em;
+    text-transform:uppercase; text-align:center; pointer-events:none; will-change:transform;
+    visibility:hidden; z-index:5;
   }
-  #typoLeft  { font-size: clamp(2.6rem, 11vw, 11rem); }
-  #typoRight { font-size: clamp(2.2rem, 9vw, 9rem); }
+  #typoLeft  { font-size:clamp(2.6rem, 11vw, 11rem); }
+  #typoRight { font-size:clamp(2.2rem, 9vw, 9rem); }
 
-  /* ---- Impressum: statisch, dezent, ständig verfügbar ---- */
   #impressum {
-    position: fixed;
-    right: 16px;
-    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-    z-index: 10;
-    font-family: "Helvetica Neue", HelveticaNeue, Helvetica, Arial, sans-serif;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: #fff;
-    opacity: 0.55;
-    text-decoration: none;
-    transition: opacity 0.2s ease;
+    position:fixed; right:16px; bottom:calc(14px + env(safe-area-inset-bottom,0px)); z-index:10;
+    font-family:"Helvetica Neue", HelveticaNeue, Helvetica, Arial, sans-serif;
+    font-size:11px; font-weight:500; letter-spacing:0.06em; text-transform:uppercase;
+    color:#fff; opacity:0.55; text-decoration:none; transition:opacity 0.2s ease;
   }
-  #impressum:hover,
-  #impressum:focus-visible {
-    opacity: 1;
-    outline: none;
-  }
+  #impressum:hover, #impressum:focus-visible { opacity:1; outline:none; }
 </style>
 </head>
 <body>
 
 <div id="stage">
-  <img id="centerfold" src="assets/centerfold.jpg" alt="" draggable="false">
+  <!-- Parallax-Stack (hinten -> vorne) wird per JS aus LAYERS gebaut -->
   <div class="typo" id="typoLeft">KEIN BOCK</div>
   <div class="typo" id="typoRight">AUF KAFFEE<br>&amp; KUCHEN</div>
 </div>
@@ -100,160 +56,156 @@
 
 <script>
 (function () {
-  // ---- Geräteerkennung: Desktop oder Mobil ----
   var isMobile = (function () {
     var uaMobile = /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent);
     var coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-    var touchPoints = navigator.maxTouchPoints > 0;
-    return uaMobile || (coarse && touchPoints);
+    return uaMobile || (coarse && navigator.maxTouchPoints > 0);
   })();
   document.documentElement.dataset.device = isMobile ? 'mobile' : 'desktop';
 
+  // ============================================================
+  // PARALLAX-STACK  (hinten = klein k -> langsam, vorne = k~1)
+  //   k       Tiefenfaktor (Anteil der Pan-Bewegung)
+  //   opacity Deckkraft (Vollbild-Ebenen halbtransparent = Mehrfachbelichtung)
+  //   blend   optional mix-blend-mode
+  // Reihenfolge = Zeichenreihenfolge (erste = ganz hinten)
+  // ============================================================
+  var LAYERS = [
+    { src:"parallax/p1_garden_wo_blossom.png", k:0.58, opacity:1.00 },  // Grund: leerer Garten o. Blüten
+    { src:"parallax/p2_garden_w_blossom.png",  k:0.66, opacity:0.55 },  // Garten m. Blüten (Belichtung)
+    { src:"parallax/p_blossom.png",            k:0.74, opacity:0.85 },  // Blüten (Cutout)
+    { src:"parallax/p_face.png",               k:0.82, opacity:0.50 },  // Menge/Gesichter (Belichtung)
+    { src:"parallax/p_fx.png",                 k:0.88, opacity:0.90 },  // FX: Balken + Streublüten
+    { src:"parallax/p2_garden_w_blossom.png",  k:0.92, opacity:0.40 },  // Garten m. Blüten (näher)
+    { src:"parallax/p_crowd.png",              k:0.96, opacity:0.95 },  // Menge (Cutout)
+    { src:"parallax/p_blossom.png",            k:1.00, opacity:1.00 }   // Blüten vorn (Cutout)
+  ];
+
   var stage = document.getElementById('stage');
-  var img = document.getElementById('centerfold');
   var typoLeft = document.getElementById('typoLeft');
   var typoRight = document.getElementById('typoRight');
 
-  var x = 0, y = 0;             // aktuelle Bildposition
-  var minX = 0, maxX = 0;       // Verschiebegrenzen
-  var centerX = 0;              // zentrale Startposition (Centerfold mittig)
-  var dragging = false;
-  var lastPX = 0, lastPY = 0;
-  var vx = 0;                   // Geschwindigkeit für sanftes Ausrollen
-  var rafId = null;
-  var vw = 0;
-  var wLeft = 0, wRight = 0;    // Textbreiten
+  var layerEls = [];          // {img, k, opacity, loaded}
+  var refImg = null;          // vorderste Ebene = Referenz für Layout/Pan-Range
+
+  // Ebenen-Bilder erzeugen und VOR die Typo einfügen
+  LAYERS.forEach(function (L) {
+    var im = document.createElement('img');
+    im.className = 'player';
+    im.src = L.src; im.alt = ''; im.draggable = false;
+    im.style.opacity = L.opacity;
+    if (L.blend) im.style.mixBlendMode = L.blend;
+    stage.insertBefore(im, typoLeft);
+    var rec = { img: im, k: L.k, opacity: L.opacity, loaded: false };
+    im.addEventListener('load', function () { rec.loaded = true; onImgLoad(); });
+    if (im.complete && im.naturalWidth) { rec.loaded = true; }
+    layerEls.push(rec);
+  });
+  // Referenz = die Ebene mit k am nächsten an 1 (vorderste, volle Pan-Weite)
+  refImg = layerEls.reduce(function (a, b) { return Math.abs(b.k-1) < Math.abs(a.k-1) ? b : a; }).img;
+
+  var x = 0, y = 0, minX = 0, maxX = 0, centerX = 0;
+  var iw = 0, ih = 0;
+  var dragging = false, lastPX = 0, vx = 0, rafId = null;
+  var vw = 0, wLeft = 0, wRight = 0;
 
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
   function updateTypo() {
-    // Fortschritt Linksscrollen: 0 (Mitte) -> 1 (rechter Bildrand erreicht)
     var pL = 0, pR = 0;
     if (centerX - minX > 0) pL = clamp((centerX - x) / (centerX - minX), 0, 1);
     if (maxX - centerX > 0) pR = clamp((x - centerX) / (maxX - centerX), 0, 1);
-
-    // "KEIN BOCK": kommt vom linken Bildschirmrand, endet mittig zentriert
-    var startL = -wLeft / 2;            // Textmitte komplett links außerhalb
-    var endL = vw / 2;                  // Textmitte = Bildschirmmitte
-    var cL = startL + pL * (endL - startL);
-    typoLeft.style.transform = 'translate(' + (cL - wLeft / 2) + 'px, -50%)';
-
-    // "AUF KAFFEE / & KUCHEN": kommt vom rechten Bildschirmrand, endet mittig
-    var startR = vw + wRight / 2;       // Textmitte komplett rechts außerhalb
-    var endR = vw / 2;
-    var cR = startR + pR * (endR - startR);
-    typoRight.style.transform = 'translate(' + (cR - wRight / 2) + 'px, -50%)';
+    var startL = -wLeft / 2, endL = vw / 2, cL = startL + pL * (endL - startL);
+    typoLeft.style.transform = 'translate(' + (cL - wLeft/2) + 'px, -50%)';
+    var startR = vw + wRight / 2, endR = vw / 2, cR = startR + pR * (endR - startR);
+    typoRight.style.transform = 'translate(' + (cR - wRight/2) + 'px, -50%)';
   }
 
   function apply() {
-    img.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+    for (var i = 0; i < layerEls.length; i++) {
+      var rec = layerEls[i];
+      // Pan pro Ebene: bei x=centerX alle deckungsgleich, sonst gestaffelt
+      var lx = centerX + (x - centerX) * rec.k;
+      rec.img.style.transform = 'translate(' + lx + 'px,' + y + 'px) scale(' + rec.scale + ')';
+    }
     updateTypo();
   }
 
   function measureTypo() {
-    wLeft = typoLeft.offsetWidth;
-    wRight = typoRight.offsetWidth;
-    typoLeft.style.visibility = 'visible';
-    typoRight.style.visibility = 'visible';
+    wLeft = typoLeft.offsetWidth; wRight = typoRight.offsetWidth;
+    typoLeft.style.visibility = 'visible'; typoRight.style.visibility = 'visible';
   }
 
   function layout(recenter) {
-    vw = stage.clientWidth;
-    var vh = stage.clientHeight;
-
-    // Grundgröße: volle Höhe
-    var ratio = img.naturalWidth / img.naturalHeight;
-    var iw = vh * ratio;
-    var ih = vh;
-
-    // Mindest-Scrollweg sicherstellen: Bild muss deutlich breiter sein
-    // als der Viewport (Desktop stärker vergrößert als Mobil)
+    if (!refImg.naturalWidth) return;
+    vw = stage.clientWidth; var vh = stage.clientHeight;
+    var ratio = refImg.naturalWidth / refImg.naturalHeight;
+    iw = vh * ratio; ih = vh;
     var minFactor = isMobile ? 1.6 : 1.8;
-    if (iw < vw * minFactor) {
-      iw = vw * minFactor;
-      ih = iw / ratio;
-    }
-    img.style.height = ih + 'px';
+    if (iw < vw * minFactor) { iw = vw * minFactor; ih = iw / ratio; }
 
-    minX = vw - iw; // Bild ganz nach links gezogen (rechter Fotorand sichtbar)
-    maxX = 0;       // Bild ganz nach rechts gezogen (linker Fotorand sichtbar)
-    centerX = (vw - iw) / 2;
-
-    // Vertikal: mittig fixiert (Überstand oben/unten gleichmäßig beschnitten)
+    minX = vw - iw; maxX = 0; centerX = (vw - iw) / 2;
     y = (vh - ih) / 2;
+    var maxDev = centerX - minX;           // max. Auslenkung aus der Mitte
+
+    // Höhe + Overscan pro Ebene: langsamere (kleines k) brauchen mehr Rand
+    for (var i = 0; i < layerEls.length; i++) {
+      var rec = layerEls[i];
+      rec.img.style.height = ih + 'px';
+      // Overscan so, dass die Kante nie ins Bild wandert (+ kleine Reserve)
+      var gap = maxDev * (1 - rec.k);
+      rec.scale = 1 + (2 * gap) / iw + 0.03;
+    }
 
     measureTypo();
-
-    if (recenter) {
-      x = clamp(centerX, minX, maxX);
-    } else {
-      x = clamp(x, minX, maxX);
-    }
+    x = recenter ? clamp(centerX, minX, maxX) : clamp(x, minX, maxX);
     apply();
+  }
+
+  var started = false;
+  function onImgLoad() {
+    // starten, sobald die Referenz-Ebene Maße hat
+    if (!started && refImg.naturalWidth) { started = true; layout(true); }
+    else if (started) { layout(false); }
   }
 
   function momentum() {
     vx *= 0.94;
     if (Math.abs(vx) < 0.1) { rafId = null; return; }
-    x = clamp(x + vx, minX, maxX);
-    apply();
+    x = clamp(x + vx, minX, maxX); apply();
     rafId = requestAnimationFrame(momentum);
   }
-
   function onDown(e) {
-    dragging = true;
-    stage.classList.add('dragging');
-    lastPX = e.clientX; lastPY = e.clientY;
-    vx = 0;
+    dragging = true; stage.classList.add('dragging');
+    lastPX = e.clientX; vx = 0;
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
     stage.setPointerCapture && stage.setPointerCapture(e.pointerId);
   }
-
   function onMove(e) {
     if (!dragging) return;
-    var dx = e.clientX - lastPX;
-    lastPX = e.clientX; lastPY = e.clientY;
-    vx = dx;
-    x = clamp(x + dx, minX, maxX);
-    apply();
+    var dx = e.clientX - lastPX; lastPX = e.clientX; vx = dx;
+    x = clamp(x + dx, minX, maxX); apply();
   }
-
   function onUp() {
-    if (!dragging) return;
-    dragging = false;
-    stage.classList.remove('dragging');
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (!dragging) return; dragging = false; stage.classList.remove('dragging');
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches)
       rafId = requestAnimationFrame(momentum);
-    }
   }
-
   stage.addEventListener('pointerdown', onDown);
   stage.addEventListener('pointermove', onMove);
   stage.addEventListener('pointerup', onUp);
   stage.addEventListener('pointercancel', onUp);
   stage.addEventListener('lostpointercapture', onUp);
 
-  // ---- Desktop: Mausrad / Trackpad ----
-  // Vertikales Scrollen wird horizontal übersetzt:
-  // nach unten scrollen = nach rechts über das Foto fahren (Bild wandert nach links),
-  // nach oben scrollen = nach links über das Foto fahren.
-  // Horizontale Trackpad-Gesten (deltaX) funktionieren zusätzlich direkt.
   stage.addEventListener('wheel', function (e) {
     e.preventDefault();
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; vx = 0; }
-
-    var dy = e.deltaY;
-    var dx = e.deltaX;
-    // Zeilen-/Seitenmodus mancher Mäuse in Pixel umrechnen
-    if (e.deltaMode === 1) { dy *= 16; dx *= 16; }
-    else if (e.deltaMode === 2) { dy *= vw; dx *= vw; }
-
+    var dy = e.deltaY, dx = e.deltaX;
+    if (e.deltaMode === 1) { dy *= 16; dx *= 16; } else if (e.deltaMode === 2) { dy *= vw; dx *= vw; }
     var delta = Math.abs(dy) > Math.abs(dx) ? dy : dx;
-    x = clamp(x - delta, minX, maxX);
-    apply();
-  }, { passive: false });
+    x = clamp(x - delta, minX, maxX); apply();
+  }, { passive:false });
 
-  // Tastatur: Pfeiltasten verschieben (unsichtbare Zugänglichkeit)
   window.addEventListener('keydown', function (e) {
     var step = e.shiftKey ? 200 : 60;
     if (e.key === 'ArrowLeft')  { x = clamp(x + step, minX, maxX); apply(); }
@@ -263,13 +215,9 @@
   window.addEventListener('resize', function () { layout(false); });
   window.addEventListener('orientationchange', function () { layout(true); });
 
-  if (img.complete && img.naturalWidth) {
-    layout(true);
-  } else {
-    img.addEventListener('load', function () { layout(true); });
-  }
+  // Falls die Referenz schon geladen ist
+  if (refImg.complete && refImg.naturalWidth) { started = true; layout(true); }
 })();
 </script>
-
 </body>
 </html>
