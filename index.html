@@ -179,8 +179,10 @@
   var MOB={ headW:0.90, headCx:0.50, headCy:0.32, zw:0.531, zx:0.50, zy:0.44 };  // Headline 90%; Zitat 0.531 (+5%), Endpos 0.50/0.44 (etwas höher/"nach hinten")
   var ZSS=2;   // Zitat-Supersampling: PNG ZSS-fach groß rendern, per Transform runterskalieren -> scharf trotz 45°-Drehung. WICHTIG: breatheR45-Keyframe nutzt scale(1/ZSS)=0.5
   var ZINZOOM=1.15, ZP={ x:0.50, y:0.55 }, HEAD_TOP=0.235;  // Mobil: echter Screen-Fixpunkt; y<0.72 (über den Möbeln) -> Möbel driften beim Zoom nach unten. Kleiner=mehr Abwärtsdrift.
-  // Mobil Phase 5 (P4->5): gelbe Ringe aus Zitat-Mitte (Ursprungspunkt), rein scroll-gebunden
-  var RING_GAP=22, RING_LW=12, RING_CYC=4, RING_MAXA=1.00;  // Abstand(px), Dicke(px), Ringe/Scroll, max Ring-Deckkraft
+  // Phase 5 (P4->5): gelbe Ringe entstehen in der Zitat-Mitte und laufen nach außen, bis der Schirm voll ist
+  // Phase 6 (P5->6): dieselben Ringe schwellen an, bis sie zu einer geschlossenen Fläche verschmelzen
+  var RING_GAP=22, RING_LW=12, RING_MAXA=1.00;  // Abstand(px), Dicke(px), max Ring-Deckkraft
+  var RING_SWELL=1.25;   // Endbreite in Vielfachen des Ringabstands (>1 -> Ringe schließen sicher auf)
 
   // Frame-Mapping (Möbel-Frame FURN_W*100vw, zentriert, bottom:0)
   var frameW=0, frameH=0, frameLeft=0, frameTop=0;
@@ -239,24 +241,29 @@
     ctxG.globalCompositeOperation='source-over';
   }
 
-  // Mobil Phase 5: gelbe konzentrische Ringe aus der Zitat-Mitte + gelb-transparente Fade-Fläche
+  // Phase 5+6: gelbe konzentrische Ringe aus der Zitat-Mitte -> Aufbau, dann Verschmelzen zur Fläche
   function drawRings(P){
     var W=cvRings.width, H=cvRings.height; if(!W) return;
     ctxR.setTransform(1,0,0,1,0,0); ctxR.clearRect(0,0,W,H);
     var rp=clamp(P-4,0,1); if(rp<=0) return;              // erst nach Zitat-Endposition (P>4)
+    var bp=clamp(P-5,0,1);                                // Phase 6: Ringe schwellen zur Fläche
     // Ringe aus der Zitat-Mitte, rein scroll-gebunden (aus Ursprungspunkt nach außen)
     var s=RDPR, zcx=(isMobile?MOB.zx:ZITAT_END.cx), zcy=(isMobile?MOB.zy:ZITAT_END.cy);
     var cx=zcx*vw*s, cy=zcy*vh*s, G=RING_GAP*s;
     var maxR=Math.hypot(Math.max(cx,W-cx),Math.max(cy,H-cy))+G;
-    var off=(rp*G*RING_CYC)%G;                            // Scroll schiebt die Ringe nach außen
-    ctxR.strokeStyle='#ffff66'; ctxR.lineWidth=RING_LW*s;
-    for(var r=off; r<maxR; r+=G){ if(r<1) continue;
-      var a=(1-r/maxR);                                   // hart am Zentrum (voll), zum Rand ausblendend
+    // Wellenfront: wächst über die ganze Phase aus dem Ursprung bis über den Bildrand.
+    // off = front%G lässt in der Mitte laufend neue Ringe entstehen, Abstand bleibt konstant G.
+    var front=rp*maxR, off=front%G;
+    var lw=lerp(RING_LW, G*RING_SWELL, bp);               // Phase 6: Dicke wächst über den Ringabstand hinaus
+    ctxR.strokeStyle='#ffff66'; ctxR.lineWidth=lw*s;
+    for(var r=off; r<=front; r+=G){ if(r<1) continue;
+      var a=lerp(1-r/maxR, 1, bp);                        // Rand blendet aus; in Phase 6 wird alles deckend
       ctxR.globalAlpha=clamp(a,0,1)*RING_MAXA;
       ctxR.beginPath(); ctxR.arc(cx,cy,r,0,7); ctxR.stroke();
     }
-    ctxR.globalAlpha=RING_MAXA; ctxR.fillStyle='#ffff66';  // Ursprungspunkt
-    ctxR.beginPath(); ctxR.arc(cx,cy,RING_LW*s*0.7,0,7); ctxR.fill();
+    ctxR.globalAlpha=RING_MAXA; ctxR.fillStyle='#ffff66';  // Ursprungspunkt, schließt die Mitte auch beim Anschwellen
+    ctxR.beginPath(); ctxR.arc(cx,cy,lerp(RING_LW*0.7, G*RING_SWELL, bp)*s,0,7); ctxR.fill();
+    if(bp>0.7){ ctxR.globalAlpha=clamp((bp-0.7)/0.3,0,1); ctxR.fillRect(0,0,W,H); }   // Rest-Nähte der Ringkanten schließen -> wirklich eine Fläche
     ctxR.globalAlpha=1;
   }
 
@@ -361,7 +368,7 @@
   function onTableClick(){
     if(!tableActive) return;
     if(stepIdx<4){ shakeIt('shake'); stepIdx++; render(); }   // render() sofort -> Stuhl fährt gleich rein (nicht erst beim Scrollen)
-    else if(stepIdx===4){ shakeIt('shake'); placeHeadline(); stepIdx++; MAX_P=isMobile?3.0:5.0; render(); }  // Mobil: Garten(3)->Dolly(4). Desktop: Dolly(4)->Zitat-Spin(5)
+    else if(stepIdx===4){ shakeIt('shake'); placeHeadline(); stepIdx++; MAX_P=isMobile?3.0:6.0; render(); }  // Mobil: Garten(3)->Dolly(4). Desktop: Dolly(4)->Zitat-Spin(5)->Ring-Fläche(6)
   }
   hotspot.addEventListener('click', onTableClick);
 
@@ -417,7 +424,7 @@
       }
       // 5s-Halt: bei fertigem Garten (P~3) Zitat-Einflug erst nach 5s freigeben
       if(headlinePlaced){
-        if(P>=2.97 && MAX_P<5){ if(!dwellTimer) dwellTimer=setTimeout(function(){ MAX_P=5.0; dwellTimer=null; }, 5000); }
+        if(P>=2.97 && MAX_P<6){ if(!dwellTimer) dwellTimer=setTimeout(function(){ MAX_P=6.0; dwellTimer=null; }, 5000); }
         else if(P<2.9 && dwellTimer){ clearTimeout(dwellTimer); dwellTimer=null; }
       }
       // Zitat: Einflug (groß->1) dreht rechts auf 45° -> Endpos atmet bei 45°
