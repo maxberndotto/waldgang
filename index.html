@@ -66,6 +66,23 @@
   #tableHotspot { position:fixed; z-index:11; cursor:pointer; pointer-events:none; }
   #tableHotspot.active { pointer-events:auto; }
 
+  /* ===== Szene „Der Waldgang ins Eigene." (P6 -> 9,8) ===== */
+  #wald { position:fixed; inset:0; z-index:14; pointer-events:none; overflow:hidden; }
+  .wblatt, .chip { position:fixed; left:0; top:0; display:block; opacity:0;
+    transform-origin:50% 50%; will-change:transform,opacity; -webkit-user-drag:none; }
+  .chip--schatten { filter:brightness(0); }   /* Versatzschatten aus derselben Form, getrennt steuerbar */
+  #punkt { position:fixed; left:0; top:0; border-radius:50%; background:#ff2f92; z-index:15;
+    opacity:0; pointer-events:none; display:block; will-change:width,height,left,top; }
+  /* Der Punkt bleibt immer durchlässig — er liegt außerhalb von #stage und würde sonst
+     die Scroll-Ereignisse schlucken. Klickbar ist der Hinweis. */
+  #weiter { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:16;
+    opacity:0; transition:opacity .5s ease; pointer-events:none; text-decoration:none;
+    font-family:ui-monospace,"Space Mono",monospace; font-size:11px; letter-spacing:.3em;
+    text-transform:uppercase; color:#fff; text-align:center;
+    padding:14px 20px; border:1px solid rgba(255,255,255,.55); border-radius:2px; }
+  #weiter.an { opacity:.92; pointer-events:auto; }
+  #weiter:hover, #weiter:focus-visible { opacity:1; outline:none; border-color:#fff; }
+
   .typo { position:absolute; top:50%; left:0; margin:0; white-space:nowrap;
     font-family:"Helvetica Neue", HelveticaNeue, Helvetica, "Arial Black", Arial, sans-serif;
     font-weight:900; color:#fff; line-height:0.92; letter-spacing:-0.02em; text-transform:uppercase; text-align:center;
@@ -110,6 +127,14 @@
   <div class="typo" id="typoLeft">KEIN BOCK</div>
   <div class="typo" id="typoRight">AUF KAFFEE<br>&amp; KUCHEN</div>
 </div>
+
+<div id="wald">
+  <img class="wblatt" id="w1" src="wald/01_der_waldgang.png" alt="Der Waldgang">
+  <img class="wblatt" id="w2" src="wald/02_ins_eigene.png" alt="ins Eigene.">
+  <img class="wblatt" id="w3" src="wald/03_satz.png" alt="Der Waldgang ins Eigene.">
+</div>
+<div id="punkt" aria-hidden="true"></div>
+<a id="weiter" href="magazin.html">ins Magazin</a>
 
 <div id="scrollcue">
   <span>scroll</span>
@@ -267,6 +292,142 @@
     ctxR.globalAlpha=1;
   }
 
+  // ===== Szene „Der Waldgang ins Eigene." (P6 -> 9,8) =========================
+  // P6->9: drei Stationen. Jede kriecht klein aus der Tiefe heran, knallt auf Format,
+  // hält, und zieht dann an der Kamera vorbei. Station 3 bleibt stehen.
+  // P9->9,8: Zoom in den pinken Satzpunkt hinein, von dort weiter ins Magazin.
+  var wald=document.getElementById('wald');
+  var punkt=document.getElementById('punkt'), weiter=document.getElementById('weiter');
+  var W_FAR=0.10, W_PRE=0.30, W_OVER=1.07, W_PASS=9.0;  // Tiefe · Vorhalt · Überschwinger · Ausfahrt
+  var SNAP_W=0.05, SETTLE_W=0.07;                        // Breite von Knall und Nachfedern, in P
+  var ZOOM_A=9.0, ZOOM_B=9.8, zoomMax=40, navTimer=null;
+  var PUNKT={ x:0.7567, y:0.7393, d:0.0433 };            // Lage und Größe des pinken Punkts in 03_satz.png
+
+  var STAT=[
+    { el:document.getElementById('w1'), t0:6.05, snap:6.35, hold:6.95, out:7.55, w:0.86, mw:0.94 },
+    { el:document.getElementById('w2'), t0:6.95, snap:7.35, hold:7.95, out:8.55, w:0.80, mw:0.92 },
+    { el:document.getElementById('w3'), t0:7.95, snap:8.35, hold:1e9,  out:1e9,  w:0.78, mw:0.90 }
+  ];
+  // Splitter: Datei enthält NUR die Form. Den Versatzschatten erzeugt die Seite aus derselben
+  // Datei, dadurch sind Farbe und Schatten getrennt steuerbar.
+  // gelb:1 -> löst sich nach der Ankunft im gelben Grund auf, der Schatten geht danach mit.
+  var CHIPS=[
+    { st:0, f:'blitz_pink',       x:0.10, y:0.30, w:0.13, dir:[-1.4,-0.6], t:1.30 },
+    { st:0, f:'dreieck_gelb',     x:0.78, y:0.20, w:0.16, dir:[ 1.3,-1.0], t:1.10, gelb:1 },
+    { st:0, f:'zickzack_violett', x:0.34, y:0.15, w:0.12, dir:[ 0.0,-1.5], t:0.90 },
+    { st:0, f:'dreieck_cyan',     x:0.13, y:0.76, w:0.13, dir:[-1.3, 0.9], t:1.20 },
+    { st:0, f:'raster_pink',      x:0.88, y:0.78, w:0.10, dir:[ 1.4, 0.8], t:1.00 },
+    { st:0, f:'wuerfel_violett',  x:0.52, y:0.88, w:0.12, dir:[ 0.0, 1.5], t:0.80 },
+    { st:1, f:'blitz_pink',       x:0.26, y:0.22, w:0.11, dir:[-0.6,-1.4], t:1.20 },
+    { st:1, f:'zickzack_pink',    x:0.70, y:0.16, w:0.12, dir:[ 1.2,-1.0], t:0.90 },
+    { st:1, f:'dreieck_violett',  x:0.12, y:0.68, w:0.12, dir:[-1.4, 0.5], t:1.15 },
+    { st:1, f:'dreieck_gelb',     x:0.82, y:0.76, w:0.15, dir:[ 1.3, 0.9], t:1.05, gelb:1 },
+    { st:1, f:'kreis_cyan',       x:0.60, y:0.89, w:0.06, dir:[ 0.3, 1.5], t:0.85 },
+    { st:2, f:'zickzack_violett', x:0.17, y:0.13, w:0.10, dir:[-1.0,-1.2], t:0.90 },
+    { st:2, f:'dreieck_gelb',     x:0.87, y:0.17, w:0.13, dir:[ 1.2,-0.9], t:1.00, gelb:1 },
+    { st:2, f:'balken_schwarz',   x:0.15, y:0.87, w:0.12, dir:[-1.2, 0.8], t:0.95 },
+    { st:2, f:'kreis_cyan',       x:0.91, y:0.62, w:0.05, dir:[ 1.3, 0.2], t:1.10 }
+  ];
+
+  STAT.forEach(function(s){ s.el.addEventListener('load', layoutWald); });
+  CHIPS.forEach(function(c){
+    c.schatten=new Image(); c.schatten.className='chip chip--schatten'; c.schatten.alt='';
+    c.farbe=new Image();    c.farbe.className='chip';                   c.farbe.alt='';
+    c.schatten.src=c.farbe.src='wald/chip_'+c.f+'.png';
+    c.farbe.addEventListener('load', layoutWald);
+    wald.appendChild(c.schatten); wald.appendChild(c.farbe);
+  });
+
+  function fitEl(el, wFrac, hFrac){
+    var nw=el.naturalWidth||1, nh=el.naturalHeight||1;
+    var w=wFrac*vw, h=w*nh/nw, mh=hFrac*vh;
+    if(h>mh){ h=mh; w=h*nw/nh; }
+    el.style.width=w+'px'; el.style.height=h+'px';
+    return { w:w, h:h };
+  }
+  function layoutWald(){
+    if(!vw||!vh) return;
+    STAT.forEach(function(s){
+      var d=fitEl(s.el, isMobile?s.mw:s.w, 0.62);
+      s.bw=d.w; s.bh=d.h; s.cx=vw/2; s.cy=vh/2;
+      s.el.style.left=((vw-d.w)/2)+'px'; s.el.style.top=((vh-d.h)/2)+'px';
+    });
+    CHIPS.forEach(function(c){
+      var d=fitEl(c.farbe, isMobile?c.w*1.15:c.w, 0.30);
+      c.schatten.style.width=d.w+'px'; c.schatten.style.height=d.h+'px';
+      c.cx=c.x*vw; c.cy=c.y*vh;
+      var l=c.cx-d.w/2, t=c.cy-d.h/2;
+      c.farbe.style.left=l+'px';    c.farbe.style.top=t+'px';
+      c.schatten.style.left=l+'px'; c.schatten.style.top=t+'px';
+      c.off=Math.max(3, d.w*0.035);
+    });
+    zoomMax=1.2*Math.hypot(vw,vh)/Math.max(PUNKT.d*(STAT[2].bw||vw),1);   // Punkt wächst sicher über den Rand
+  }
+
+  function statState(s,P){
+    if(P<=s.t0 || P>=s.out) return null;
+    var snapA=s.snap-SNAP_W, settleB=s.snap+SETTLE_W, t;
+    if(P<snapA){ t=(P-s.t0)/Math.max(snapA-s.t0,1e-6); return { s:W_FAR+(W_PRE-W_FAR)*t*t, o:0.45*t }; }
+    if(P<s.snap){ t=Math.pow((P-snapA)/SNAP_W,0.35); return { s:W_PRE+(W_OVER-W_PRE)*t, o:0.45+0.55*t }; }
+    if(P<settleB){ t=easeOut((P-s.snap)/SETTLE_W); return { s:W_OVER+(1-W_OVER)*t, o:1 }; }
+    if(P<s.hold) return { s:1, o:1 };
+    t=(P-s.hold)/Math.max(s.out-s.hold,1e-6);
+    return { s:1+(W_PASS-1)*t*t, o:1-clamp((t-0.12)/0.40,0,1) };   // weg, bevor der nächste knallt
+  }
+  function chipState(s,c,P){
+    var a0=s.snap-SNAP_W-0.16, a1=s.snap-SNAP_W-0.02;   // ein Takt vor der Schrift
+    if(P<=a0 || P>=s.out) return null;
+    var sc=1, op=1, fx=0, fy=0, e, t;
+    if(P<a1){ e=easeOut((P-a0)/(a1-a0)); fx=c.dir[0]*vw*(1-e); fy=c.dir[1]*vh*(1-e); op=e; }
+    if(P>=s.hold){ t=(P-s.hold)/Math.max(s.out-s.hold,1e-6);
+      sc=1+(W_PASS-1)*t*t*c.t;
+      fx+=c.dir[0]*vw*0.35*t*t*c.t; fy+=c.dir[1]*vh*0.35*t*t*c.t;
+      op*=1-clamp((t-0.10)/0.40,0,1); }
+    return { s:sc, o:op, x:fx, y:fy };
+  }
+
+  function waldAus(){
+    for(var i=0;i<STAT.length;i++) STAT[i].el.style.opacity=0;
+    for(var j=0;j<CHIPS.length;j++){ CHIPS[j].farbe.style.opacity=0; CHIPS[j].schatten.style.opacity=0; }
+    punkt.style.opacity=0; weiter.classList.remove('an');
+    if(navTimer){ clearTimeout(navTimer); navTimer=null; }
+  }
+  function renderWald(P){
+    if(P<=STAT[0].t0){ waldAus(); return; }
+    var zp=clamp((P-ZOOM_A)/(ZOOM_B-ZOOM_A),0,1);
+    var Z=1+(zoomMax-1)*Math.pow(zp,2.2);
+    var s3=STAT[2], fade=1-clamp((zp-0.12)/0.38,0,1);
+    var dx=vw/2+(PUNKT.x-0.5)*(s3.bw||0), dy=vh/2+(PUNKT.y-0.5)*(s3.bh||0);   // Zoomzentrum = der Punkt
+
+    for(var i=0;i<STAT.length;i++){
+      var s=STAT[i], st=statState(s,P);
+      if(!st){ s.el.style.opacity=0; continue; }
+      s.el.style.transform='translate('+(dx+(s.cx-dx)*Z-s.cx)+'px,'+(dy+(s.cy-dy)*Z-s.cy)+'px) scale('+(st.s*Z)+')';
+      s.el.style.opacity=st.o*fade;
+    }
+    for(var j=0;j<CHIPS.length;j++){
+      var c=CHIPS[j], sc=STAT[c.st], cs=chipState(sc,c,P);
+      if(!cs){ c.farbe.style.opacity=0; c.schatten.style.opacity=0; continue; }
+      var base='translate('+(dx+(c.cx-dx)*Z-c.cx+cs.x)+'px,'+(dy+(c.cy-dy)*Z-c.cy+cs.y)+'px) scale('+(cs.s*Z)+')';
+      c.farbe.style.transform=base;
+      c.schatten.style.transform=base+' translate('+c.off+'px,'+c.off+'px)';
+      var gc=c.gelb?1-clamp((P-(sc.snap+0.10))/0.20,0,1):1;   // Gelb löst sich im Grund auf …
+      var gs=c.gelb?1-clamp((P-(sc.snap+0.26))/0.20,0,1):1;   // … der Schatten geht danach mit
+      c.farbe.style.opacity=cs.o*fade*gc;
+      c.schatten.style.opacity=cs.o*fade*gs;
+    }
+    if(zp>0){
+      var pd=PUNKT.d*(s3.bw||0)*Z;
+      punkt.style.width=pd+'px'; punkt.style.height=pd+'px';
+      punkt.style.left=(dx-pd/2)+'px'; punkt.style.top=(dy-pd/2)+'px'; punkt.style.opacity=1;
+    } else { punkt.style.opacity=0; }
+    weiter.classList.toggle('an', zp>0.93);   // erst wenn der Schirm wirklich ganz pink ist
+    // Am Anschlag kurz halten, dann weiter ins Magazin. Zurückscrollen bricht ab.
+    // Der Schirm ist ab zp~0,92 voll gedeckt; nicht auf den letzten Rundungsrest warten.
+    if(zp>=0.985){ if(!navTimer) navTimer=setTimeout(function(){ location.href='magazin.html'; },1400); }
+    else if(navTimer){ clearTimeout(navTimer); navTimer=null; }
+  }
+
   function measureTypo(){ wLeft=typoLeft.offsetWidth; wRight=typoRight.offsetWidth; typoLeft.style.visibility='visible'; typoRight.style.visibility='visible'; }
   function updateHotspot(){ hotspot.style.left=fxs(TB.l)+'px'; hotspot.style.top=fys(TB.t)+'px';
     hotspot.style.width=((TB.r-TB.l)*frameW)+'px'; hotspot.style.height=((TB.b-TB.t)*frameH)+'px'; }
@@ -309,7 +470,7 @@
     // Fill/Garten-Höhe an tatsächlichen Viewport (Mobil-Browserrand)
     cvYellow.style.height=vh+'px'; cvWhite.style.height=vh+'px'; cvGarten.style.height=vh+'px';
     cvRings.style.height=vh+'px'; cvRings.width=Math.round(vw*RDPR); cvRings.height=Math.round(vh*RDPR);
-    measureTypo(); buildFields(); updateHotspot(); placeHeadlineRect(); computeZoom();
+    measureTypo(); buildFields(); updateHotspot(); placeHeadlineRect(); computeZoom(); layoutWald();
     cvGarten.width=Math.round(vw); cvGarten.height=Math.round(vh);
     if(locked){ x=centerX; xTarget=centerX; } else { x=recenter?clamp(centerX,minX,maxX):clamp(x,minX,maxX); xTarget=x; }
     render();
@@ -368,7 +529,7 @@
   function onTableClick(){
     if(!tableActive) return;
     if(stepIdx<4){ shakeIt('shake'); stepIdx++; render(); }   // render() sofort -> Stuhl fährt gleich rein (nicht erst beim Scrollen)
-    else if(stepIdx===4){ shakeIt('shake'); placeHeadline(); stepIdx++; MAX_P=isMobile?3.0:6.0; render(); }  // Mobil: Garten(3)->Dolly(4). Desktop: Dolly(4)->Zitat-Spin(5)->Ring-Fläche(6)
+    else if(stepIdx===4){ shakeIt('shake'); placeHeadline(); stepIdx++; MAX_P=isMobile?3.0:9.8; render(); }  // Mobil: Garten(3)->Dolly(4). Desktop: Dolly(4)->Zitat-Spin(5)->Ring-Fläche(6)->Waldgang(9,8)
   }
   hotspot.addEventListener('click', onTableClick);
 
@@ -424,7 +585,7 @@
       }
       // 5s-Halt: bei fertigem Garten (P~3) Zitat-Einflug erst nach 5s freigeben
       if(headlinePlaced){
-        if(P>=2.97 && MAX_P<6){ if(!dwellTimer) dwellTimer=setTimeout(function(){ MAX_P=6.0; dwellTimer=null; }, 5000); }
+        if(P>=2.97 && MAX_P<9){ if(!dwellTimer) dwellTimer=setTimeout(function(){ MAX_P=9.8; dwellTimer=null; }, 5000); }
         else if(P<2.9 && dwellTimer){ clearTimeout(dwellTimer); dwellTimer=null; }
       }
       // Zitat: Einflug (groß->1) dreht rechts auf 45° -> Endpos atmet bei 45°
@@ -490,6 +651,8 @@
       }
     }
 
+    renderWald(P);   // Szene „Der Waldgang ins Eigene." liegt über der gelben Fläche
+
     if(P>1.9 && P<2.2) syncHotspot();   // Klickfläche auf den sichtbaren (transformierten) Tisch legen
     if(P>=1.98) activateTable(); else if(P<1.90) deactivateTable();
   }
@@ -513,9 +676,11 @@
   stage.addEventListener('pointerdown',onDown); stage.addEventListener('pointermove',onMove);
   stage.addEventListener('pointerup',onUp); stage.addEventListener('pointercancel',onUp); stage.addEventListener('lostpointercapture',onUp);
 
-  // Trackpad/Wheel: Timeline-Scroll (vertikal) vs. Schieben (horizontal), Schwung-Spitzen begrenzt
+  // Trackpad/Wheel: Timeline-Scroll (vertikal) vs. Schieben (horizontal), Schwung-Spitzen begrenzt.
+  // Haengt am Fenster, nicht an #stage: sonst schlucken darueberliegende Ebenen (Punkt, Hinweis)
+  // die Ereignisse, sobald der Zeiger auf ihnen steht.
   var WHEEL_CAP=130;
-  stage.addEventListener('wheel', function(e){
+  window.addEventListener('wheel', function(e){
     e.preventDefault(); var dy=e.deltaY,dx=e.deltaX;
     if(e.deltaMode===1){dy*=16;dx*=16;} else if(e.deltaMode===2){dy*=vw;dx*=vw;}
     if(locked){
