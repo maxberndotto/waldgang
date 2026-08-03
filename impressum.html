@@ -63,6 +63,13 @@
       max-width: 280px;
       margin-top: 1rem;
     }
+    /* Stuhl bleibt sichtbar, kleiner und in die rechte Ecke (weg von den Textlinks) */
+    .chair-mark {
+      width: 64px;
+      left: auto;
+      right: 16px;
+      bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    }
   }
   .back {
     display: inline-block;
@@ -77,6 +84,11 @@
     transition: opacity 0.2s ease;
   }
   .back:hover, .back:focus-visible { opacity: 1; outline: none; }
+
+  /* kleiner freigestellter Monobloc, beliebig platziert; führt ins Magazin */
+  .chair-mark { position: fixed; left: 22px; bottom: 18px; width: 84px; height: auto;
+    opacity: 0.85; z-index: 5; transition: opacity 0.2s ease; }
+  .chair-mark:hover, .chair-mark:focus-visible { opacity: 1; outline: none; }
 </style>
 </head>
 <body>
@@ -108,6 +120,8 @@
   </p>
 
   <a class="back" href="index.html">Zurück</a>
+  <a class="back" href="magazin.html" style="margin-left:1.5rem">Magazin</a>
 </main>
+<a class="chair-mark" href="magazin.html" aria-label="Zum Magazin"><img src="assets/cf_stuhl.png" alt="Magazin" style="display:block;width:100%;height:auto"></a>
 </body>
 </html>

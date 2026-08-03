@@ -119,10 +119,71 @@ var PIECES = [
   { id:"kroko-text", x:450, y:600, w:320, html:
     '<div class="kicker">notiz</div>' +
     '<p class="body">Ein unsterblicher Reisef\u00fchrer, der alle hat kommen und gehen sehen. Vielleicht das wiederkehrende Motiv dieses Magazins \u2014 die Figur, die bleibt, w\u00e4hrend die Ausgaben sich \u00fcberschreiben.</p>' },
+  { id:"marke", x:900, y:120, w:300, html:
+    '<figure class="figure"><img src="assets/marke_1943.png" alt=""><figcaption><span>Fundst\u00fcck \u2014 Marke, 1943</span><span class="credit">Bild \u2014 KI (ChatGPT)</span></figcaption></figure>' },
+  { id:"marke-text", x:900, y:470, w:320, html:
+    '<div class="kicker">grenz\u00fcberschreitung ohne schw\u00e4rmerei</div>' +
+    '<p class="body">Zwei Herren, die alles schon gesehen haben. 1943 \u2014 das Jahr, in dem der Chemiker die Wirkung entdeckte; das Rad, die Heimfahrt, der kleine Schrecken am Sattel. Mond und Sonne, beide mit Gesicht: analytisch <span style="font-style:italic">und</span> mystisch, in einem Blatt zusammengespannt. Kein Heiligenbild \u2014 ein Gebrauchsobjekt, n\u00fcchtern gedruckt.</p>' },
+  { id:"cf-aufmacher", x:-300, y:980, w:520, html:
+    '<div class="kicker">chronik &middot; das kernbild</div>' +
+    '<h2 class="headline" style="font-size:clamp(38px,5vw,72px)">Woraus das<br>Centerfold<br><span class="light">gemacht ist</span></h2>' +
+    '<p class="standfirst" style="font-size:clamp(16px,1.9vw,22px)">Zwei Faszinationen in einem Kader: J\u00fcngers Garten als Grund, die Menge als Ereignis, der Monobloc als Requisit. Kein Bild aus einem Guss \u2014 ein Stapel aus neun Gewerken.</p>' },
+  { id:"cf-final", x:280, y:980, w:560, html:
+    '<figure class="figure"><img src="assets/centerfold_final.png" alt=""><figcaption><span>Das finale Centerfold, Doppelseite</span><span class="credit">Montage \u2014 versch. Bild-KI</span></figcaption></figure>' },
+  { id:"cf-note", x:280, y:1420, w:540, html:
+    '<div class="kicker no-rule">archivnotiz &middot; die reihenfolge</div>' +
+    '<p class="body">Zuerst war die Montage. Aus verschiedenen Fotos zu einer Doppelseite zusammengesetzt \u2014 mit anderen Bild-Modellen als dem, das diese Seiten schreibt (ChatGPT und weitere). Eine Collage, bewusst gebaut, noch ohne Programm.<br><br>Dann die Website: das verschiebbare Centerfold, das Hin und Her, \u201eKein Bock auf Kaffee &amp; Kuchen\u201c. Das Interface stand, bevor klar war, was es tr\u00e4gt.<br><br>Erst beim zweiten Hinsehen kippte es \u2014 siehe nebenan.</p>' },
+  { id:"cf-fund", x:1180, y:1420, w:400, html:
+    '<div class="kicker">der fund</div>' +
+    '<p class="pull" style="font-size:clamp(24px,3vw,40px)">Der Garten<br>war schon<br><span class="mark">immer</span> seiner.</p>' +
+    '<p class="body small" style="margin-top:16px">Der Einstieg war der Stuhl. Auf dem Wikipedia-Eintrag zum <span style="font-style:italic">Monobloc</span> liegt dieses Foto als Beispielbild \u2014 vier wei\u00dfe Plastikst\u00fchle um einen Tisch mit gelber Decke. In der Bildunterschrift dann der Satz, der alles kippte: die Sitzgruppe im Garten von Ernst J\u00fcnger.<br><br>Was Kulisse schien, war Herkunft. Aus dem beil\u00e4ufigen Requisit wurde eine Auseinandersetzung \u2014 und die Bewusstwerdung: der Grund dieses Bildes zeigt tats\u00e4chlich J\u00fcngers Garten.<br><br>Von hier lief es schnell weiter zu den ersten Notizen; die anf\u00e4nglichen S\u00e4tze des Fundaments sind genau an diesem Punkt entstanden. Ab hier ist das Foto kein Fund mehr, sondern ein Fundament \u2014 und die Homepage beginnt, ins Grading hin\u00fcberzublenden.</p>' +
+    '<div class="apparat" style="margin-top:14px;opacity:.7">Foto: Richard Mayer, CC BY-SA 3.0 \u2014 Wikipedia, \u201eMonobloc-Stuhl\u201c</div>' },
+  { id:"cf-layer-garden", x:-320, y:1500, w:300, html:
+    '<figure class="figure"><img src="assets/cf_layer_garden.png" alt=""><figcaption><span>Schicht \u2014 Garden</span><span class="credit">Grund, Figuren ausgestanzt</span></figcaption></figure>' },
+  { id:"cf-layer-crowd", x:-320, y:1820, w:300, html:
+    '<figure class="figure"><img src="assets/cf_layer_crowd.png" alt=""><figcaption><span>Schicht \u2014 Crowd</span><span class="credit">die Menge, freigestellt</span></figcaption></figure>' },
+  { id:"cf-layer-blossom", x:20, y:1820, w:300, html:
+    '<figure class="figure"><img src="assets/cf_layer_blossom.png" alt=""><figcaption><span>Schicht \u2014 Blossoms</span><span class="credit">Zierde und Verdeckung</span></figcaption></figure>' },
+  { id:"cf-layer-fx", x:360, y:1820, w:300, html:
+    '<figure class="figure"><img src="assets/cf_layer_fx.png" alt=""><figcaption><span>Schicht \u2014 FX + Balken</span><span class="credit">Korn, Rest, Zensur</span></figcaption></figure>' },
+  { id:"cf-stack", x:720, y:1500, w:360, html:
+    '<div class="kicker">der stapel</div>' +
+    '<figure class="figure" style="margin-top:8px"><img src="assets/cf_stack_logik.png" alt=""><figcaption><span>Neun Gewerke, von unten nach oben</span><span class="credit">Logik-Skizze</span></figcaption></figure>' +
+    '<p class="body small" style="margin-top:14px">Background &middot; Garden &middot; Crowd &middot; Hero &middot; Props &middot; Flying Props &middot; Blossoms &middot; FX &middot; Print Finish. Dieselbe Grammatik, austauschbares Material.</p>' },
+  { id:"fill", x:1640, y:1440, w:300, html:
+    '<div class="kicker">der übergang</div>' +
+    '<figure class="figure"><video autoplay muted loop playsinline aria-hidden="true"><source src="assets/fill-loop.webm" type="video/webm"></video><figcaption><span>Gelb füllt, Weiß darüber</span><span class="credit">Homepage-Mechanik</span></figcaption></figure>' +
+    '<p class="body small" style="margin-top:12px">Der Farbfilm kriecht organisch über das Bild — kein harter Schnitt, ein Kippen. Hier geht die Grundschicht ins Grading über: aus Dokument wird Inszenierung.</p>' },
+  { id:"cf-fundfoto", x:1180, y:2160, w:440, html:
+    '<div class="kicker">die grundschicht</div>' +
+    '<figure class="figure"><img src="assets/cf_fund_foto.jpg" alt=""><figcaption><span>Das Fundfoto — Jüngers Garten</span><span class="credit">Richard Mayer, CC BY-SA 3.0</span></figcaption></figure>' +
+    '<p class="body small" style="margin-top:12px">Vier Monobloc, gelbe Decke, Rosen am Brunnen. Dieses Foto liegt ganz unten im Stapel — der stille Grund, auf dem alles andere sitzt.</p>' },
+  { id:"quote-garten", x:1680, y:2120, w:520, html:
+    '<div class="kicker">leitsatz</div>' +
+    '<p class="pull" style="font-size:clamp(32px,4.2vw,60px)">Der Garten ist der Ort, an den man sich <span class="mark">zurückzieht</span>, wenn die Geschichte zu laut wird.</p>' },
+  { id:"quote-waldgang", x:1760, y:2640, w:480, html:
+    '<div class="kicker">der waldgang</div>' +
+    '<p class="pull" style="font-size:clamp(30px,4vw,54px)">Widerstand durch Rückzug: <span class="mark">betrachten</span>, statt verschluckt zu werden.</p>' +
+    '<div class="apparat" style="margin-top:12px;opacity:.7">nach Ernst Jünger, „Der Waldgang“, 1951</div>' },
+  { id:"cf-cutout", x:1240, y:2700, w:340, html:
+    '<div class="kicker">ausgeschnitten</div>' +
+    '<figure class="figure" style="transform:rotate(-5deg)"><img src="assets/cf_cutout.png" alt=""><figcaption><span>Schicht — Garden, Figuren gestanzt</span><span class="credit">Transparenz</span></figcaption></figure>' +
+    '<p class="body small" style="margin-top:16px">So sieht der Grund aus, wenn die Menge herausgeschnitten ist: Löcher, wo eben noch Körper waren.</p>' },
+  { id:"cf-cutout-crowd", x:1420, y:2580, w:340, html:
+    '<div class="kicker">darüber</div>' +
+    '<figure class="figure" style="transform:rotate(-3deg)"><img src="assets/cf_cutout_crowd.png" alt=""><figcaption><span>Schicht — Crowd, freigestellt</span><span class="credit">Transparenz</span></figcaption></figure>' },
+  { id:"cf-stuhl", x:760, y:640, w:500, html:
+    '<img src="assets/cf_stuhl.png" alt="Monobloc" style="display:block;width:100%;height:auto">' },
+  { id:"garten-riso", x:1740, y:3140, w:360, html:
+    '<div class="kicker">der garten · riso</div>' +
+    '<figure class="figure"><img src="assets/cf_garten_riso.jpg" alt=""><figcaption><span>„Der Garten“ — Risoprint</span><span class="credit">Handdruck</span></figcaption></figure>' },
+  { id:"stuehle-webm", x:2160, y:3160, w:320, html:
+    '<div class="kicker">die logik</div>' +
+    '<figure class="figure"><video autoplay muted loop playsinline aria-hidden="true"><source src="assets/stuehle_tisch_loop.webm" type="video/webm"></video><figcaption><span>Tisch &amp; Stühle fahren ein</span><span class="credit">Bewegtbild</span></figcaption></figure>' },
   { id:"colophon", x:-320, y:560, w:260, html:
     '<div class="framed"><div class="apparat" style="line-height:1.8">Ausgabe im Werden<br>w\u00e4chst fortlaufend<br>Redaktion: Mensch &amp; Maschine</div></div>' }
 ];
-var THREADS = [ ["aufmacher","pull"], ["figure-cf","keinbock"], ["kroko","kroko-text"] ];
+var THREADS = [ ["aufmacher","pull"], ["figure-cf","keinbock"], ["kroko","kroko-text"], ["marke","marke-text"], ["cf-aufmacher","cf-final"], ["cf-final","cf-layer-garden"], ["cf-final","cf-stack"], ["figure-cf","cf-aufmacher"], ["cf-note","cf-fund"], ["cf-fund","cf-layer-garden"], ["cf-fund","fill"], ["cf-fund","cf-fundfoto"], ["cf-fundfoto","cf-cutout"], ["cf-fundfoto","cf-final"], ["cf-fund","quote-garten"], ["quote-garten","quote-waldgang"], ["cf-stuhl","aufmacher"], ["cf-stuhl","cf-aufmacher"], ["cf-stuhl","marke"], ["cf-stuhl","quote-garten"], ["quote-garten","garten-riso"], ["garten-riso","stuehle-webm"] ];
 
 (function () {
   var isMobile = (function () {

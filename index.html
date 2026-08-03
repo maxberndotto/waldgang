@@ -5,218 +5,546 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>&#8203;</title>
 <style>
-  html, body {
-    margin:0; padding:0; width:100%; height:100%; overflow:hidden;
-    background:#fff; overscroll-behavior:none; touch-action:none;
-    -webkit-user-select:none; user-select:none;
-  }
-
-  #stage {
-    position:fixed; inset:0; width:100vw; height:100vh; height:100dvh;
-    overflow:hidden; cursor:grab; background:#fff;
-  }
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#fff;
+    overscroll-behavior:none; touch-action:none; -webkit-user-select:none; user-select:none; }
+  #stage { position:fixed; inset:0; width:100vw; height:100vh; height:100dvh; overflow:hidden; cursor:grab; background:#fff;
+    perspective:1400px; perspective-origin:50% 50%; }
   #stage.dragging { cursor:grabbing; }
+  #stage.locked { cursor:default; }
 
-  /* Parallax-Ebenen: gleiche Registrierung, unterschiedliche Tiefe */
-  .player {
-    position:absolute; top:0; left:0; height:100%; width:auto; max-width:none;
-    display:block; will-change:transform; pointer-events:none; -webkit-user-drag:none;
-    transform-origin:50% 50%; backface-visibility:hidden;
-  }
+  #centerfold { position:absolute; top:0; left:0; height:100%; width:auto; max-width:none; display:block;
+    will-change:transform; pointer-events:none; -webkit-user-drag:none; transform-origin:50% 50%; z-index:1; }
 
-  /* ---- Scroll-gebundene Typografie ---- */
-  .typo {
-    position:absolute; top:50%; left:0; margin:0; white-space:nowrap;
-    font-family:"Helvetica Neue", HelveticaNeue, "Helvetica Neue LT Std", Helvetica, "Arial Black", Arial, sans-serif;
-    font-weight:900; font-stretch:normal; color:#fff; line-height:0.92; letter-spacing:-0.02em;
-    text-transform:uppercase; text-align:center; pointer-events:none; will-change:transform;
-    visibility:hidden; z-index:5;
-  }
+  canvas.fill { position:fixed; inset:0; width:100vw; height:100dvh; pointer-events:none; display:block; }
+  #fillYellow { z-index:2; }
+  #fillWhite  { z-index:3; }
+  #fillRings  { z-index:11; }   /* gelbe Ringe: über allem inkl. Headline(9)/Zitat(10) */
+  #gartenBlank{ position:fixed; inset:0; width:100vw; height:100dvh; z-index:4; pointer-events:none; display:block; transform-origin:50% 100%; will-change:transform; }
+  #gebueschWrap{ position:fixed; inset:0; z-index:4; pointer-events:none; opacity:0; transform-origin:50% 0; will-change:transform,opacity; }
+  #gebueschWrap img{ width:100vw; height:100dvh; object-fit:cover; display:block; }
+  #gebueschHinten.breathe{ animation: breatheBg 6.5s ease-in-out infinite; }
+  @keyframes breatheBg { 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.012);} }
+
+  .furn { position:fixed; bottom:0; height:auto; display:block; pointer-events:none; -webkit-user-drag:none; }
+  #stuhlHinten { z-index:5; }
+  #stuhlLinks  { z-index:5; }
+  #tableWrap   { position:fixed; bottom:0; z-index:6; transform:translateY(100%); will-change:transform; }
+  #tableWrap img { display:block; width:100%; height:auto; -webkit-user-drag:none; }
+  #stuhlRechts { z-index:7; }
+  #stuhlVorne  { z-index:8; }
+  .chair { transition: transform 0.95s cubic-bezier(0.22,0.61,0.36,1); will-change:transform; }
+  #stage.zooming .chair { transition:none; }
+
+  #headline, #zitat { position:fixed; display:block; pointer-events:none; -webkit-user-drag:none;
+    transform-origin:50% 50%; will-change:transform,opacity; opacity:0; }
+  #headline { z-index:9; filter:drop-shadow(0 7px 11px rgba(0,0,0,.30)); }
+  #zitat    { z-index:10; filter:drop-shadow(0 8px 12px rgba(0,0,0,.30)); }
+  /* Mobil-Test: Filter/Layer-Promotion raus -> Safari rendert scharf statt pixelig (Schatten fällt weg) */
+  html[data-device="mobile"] #zitat { filter:none; will-change:auto; }
+  #headline.flyin { transition: transform 1.45s cubic-bezier(0.16,0.7,0.3,1), opacity .65s ease; }
+  html[data-device="mobile"] #headline.flyin { transition: transform 2.1s cubic-bezier(0.42,0,0.4,1), opacity 1s ease; }  /* weicher, ease-in-out */
+  #headline.flyin { filter:none; }   /* Schatten aus während Einflug (scale 7 -> kein 7x-Blur-Flackern) */
+  #headline.breathe { animation: breathe 4.2s ease-in-out infinite; }
+  #zitat.breathe { animation: breathe 4.6s ease-in-out infinite; }
+  #zitat.breatheR45 { animation: breatheR45 4.6s ease-in-out infinite; }
+  @keyframes breatheR45 { 0%,100%{ transform: rotate(35deg) scale(0.5);} 50%{ transform: rotate(35deg) scale(0.514);} }  /* 35° End-Drehung; scale 1/ZSS=0.5 (Supersampling); atmet 0.5->0.514 */
+  #headline.floatL { animation: floatL 6.5s ease-in-out infinite; }
+  #zitat.floatR    { animation: floatR 6.9s ease-in-out infinite; }
+  @keyframes floatL { 0%,100%{ transform: rotateY(0deg) scale(1);} 50%{ transform: rotateY(-22.5deg) scale(1.02);} }
+  @keyframes floatR { 0%,100%{ transform: rotateY(0deg) scale(1);} 50%{ transform: rotateY(22.5deg) scale(1.02);} }
+  @keyframes breathe { 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.028);} }
+
+  @keyframes shake {
+    0%{transform:translate(0,0) rotate(0)} 15%{transform:translate(-5px,2px) rotate(-1.1deg)}
+    32%{transform:translate(4px,-2px) rotate(1deg)} 50%{transform:translate(-3px,2px) rotate(-0.7deg)}
+    68%{transform:translate(3px,-1px) rotate(0.6deg)} 84%{transform:translate(-1px,1px) rotate(-0.3deg)}
+    100%{transform:translate(0,0) rotate(0)} }
+  @keyframes wiggle { 0%{transform:rotate(0)} 25%{transform:rotate(-0.6deg)} 55%{transform:rotate(0.5deg)} 100%{transform:rotate(0)} }
+  #tableShadow.shake { animation: shake .5s ease; }
+  #tableShadow.wiggle { animation: wiggle .8s ease; }
+
+  #tableHotspot { position:fixed; z-index:11; cursor:pointer; pointer-events:none; }
+  #tableHotspot.active { pointer-events:auto; }
+
+  .typo { position:absolute; top:50%; left:0; margin:0; white-space:nowrap;
+    font-family:"Helvetica Neue", HelveticaNeue, Helvetica, "Arial Black", Arial, sans-serif;
+    font-weight:900; color:#fff; line-height:0.92; letter-spacing:-0.02em; text-transform:uppercase; text-align:center;
+    pointer-events:none; will-change:transform,opacity; visibility:hidden; z-index:2; }
   #typoLeft  { font-size:clamp(2.6rem, 11vw, 11rem); }
   #typoRight { font-size:clamp(2.2rem, 9vw, 9rem); }
 
-  #impressum {
-    position:fixed; right:16px; bottom:calc(14px + env(safe-area-inset-bottom,0px)); z-index:10;
-    font-family:"Helvetica Neue", HelveticaNeue, Helvetica, Arial, sans-serif;
-    font-size:11px; font-weight:500; letter-spacing:0.06em; text-transform:uppercase;
-    color:#fff; opacity:0.55; text-decoration:none; transition:opacity 0.2s ease;
-  }
+  #scrollcue { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:12; opacity:0;
+    transition:opacity .6s ease; pointer-events:none; display:flex; flex-direction:column; align-items:center; gap:9px;
+    font-family:ui-monospace,"Space Mono",monospace; font-size:10px; letter-spacing:.28em; text-transform:uppercase;
+    color:#0b0b0b; mix-blend-mode:difference; }
+  #scrollcue.on { opacity:.8; }
+  #scrollcue svg { display:block; animation:bob 1.7s ease-in-out infinite; }
+  @keyframes bob { 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(6px);} }
+
+  #impressum { position:fixed; right:16px; bottom:calc(14px + env(safe-area-inset-bottom,0px)); z-index:13;
+    font-family:"Helvetica Neue", Helvetica, Arial, sans-serif; font-size:11px; font-weight:500; letter-spacing:0.06em;
+    text-transform:uppercase; color:#fff; opacity:0.7; text-decoration:none; transition:opacity 0.2s ease; mix-blend-mode:difference; }
   #impressum:hover, #impressum:focus-visible { opacity:1; outline:none; }
 </style>
 </head>
 <body>
 
 <div id="stage">
-  <!-- Parallax-Stack (hinten -> vorne) wird per JS aus LAYERS gebaut -->
+  <img id="centerfold" src="assets/centerfold.jpg" alt="" draggable="false">
+  <canvas class="fill" id="fillYellow"></canvas>
+  <canvas class="fill" id="fillWhite"></canvas>
+  <canvas id="gartenBlank"></canvas>
+  <div id="gebueschWrap"><img id="gebueschHinten" src="assets/gebusch_hinten.png" alt=""></div>
+
+  <img class="furn chair" id="stuhlHinten" src="assets/stuhl_hinten_schatten.png" alt="">
+  <img class="furn chair" id="stuhlLinks"  src="assets/stuhl_links_schatten.png"  alt="">
+  <div id="tableWrap"><img id="tableShadow" src="assets/tisch_schatten.png" alt=""></div>
+  <img class="furn chair" id="stuhlRechts" src="assets/stuhl_rechts_schatten.png" alt="">
+  <img class="furn chair" id="stuhlVorne"  src="assets/stuhl_vorne_schatten.png"  alt="">
+
+  <canvas class="fill" id="fillRings"></canvas>
+  <img id="headline" src="assets/der_garten_headline.png" alt="Der Garten">
+  <img id="zitat" src="assets/ist_der_Ort.png" alt="… ist der Ort, an den man sich zurückzieht, wenn die Geschichte zu laut wird.">
+  <div id="tableHotspot"></div>
+
   <div class="typo" id="typoLeft">KEIN BOCK</div>
   <div class="typo" id="typoRight">AUF KAFFEE<br>&amp; KUCHEN</div>
+</div>
+
+<div id="scrollcue">
+  <span>scroll</span>
+  <svg width="26" height="30" viewBox="0 0 26 30" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 V26 M4 17 L13 27 L22 17"/></svg>
 </div>
 
 <a id="impressum" href="impressum.html">Impressum</a>
 
 <script>
 (function () {
-  var isMobile = (function () {
-    var uaMobile = /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent);
+  var isMobile = (function () {   // Eine Datei, erkennt selbst Desktop/Handy
+    var ua = /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent);
     var coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-    return uaMobile || (coarse && navigator.maxTouchPoints > 0);
+    return ua || (coarse && navigator.maxTouchPoints > 0);
   })();
   document.documentElement.dataset.device = isMobile ? 'mobile' : 'desktop';
 
-  // ============================================================
-  // PARALLAX-STACK  (hinten = klein k -> langsam, vorne = k~1)
-  //   k       Tiefenfaktor (Anteil der Pan-Bewegung)
-  //   opacity Deckkraft (Vollbild-Ebenen halbtransparent = Mehrfachbelichtung)
-  //   blend   optional mix-blend-mode
-  // Reihenfolge = Zeichenreihenfolge (erste = ganz hinten)
-  // ============================================================
-  var LAYERS = [
-    { src:"parallax/p1_garden_wo_blossom.png", k:0.58, opacity:1.00 },  // Grund: leerer Garten o. Blüten
-    { src:"parallax/p2_garden_w_blossom.png",  k:0.66, opacity:0.55 },  // Garten m. Blüten (Belichtung)
-    { src:"parallax/p_blossom.png",            k:0.74, opacity:0.85 },  // Blüten (Cutout)
-    { src:"parallax/p_face.png",               k:0.82, opacity:0.50 },  // Menge/Gesichter (Belichtung)
-    { src:"parallax/p_fx.png",                 k:0.88, opacity:0.90 },  // FX: Balken + Streublüten
-    { src:"parallax/p2_garden_w_blossom.png",  k:0.92, opacity:0.40 },  // Garten m. Blüten (näher)
-    { src:"parallax/p_crowd.png",              k:0.96, opacity:0.95 },  // Menge (Cutout)
-    { src:"parallax/p_blossom.png",            k:1.00, opacity:1.00 }   // Blüten vorn (Cutout)
+  var stage=document.getElementById('stage'), img=document.getElementById('centerfold');
+  var typoLeft=document.getElementById('typoLeft'), typoRight=document.getElementById('typoRight');
+  var cvYellow=document.getElementById('fillYellow'), cvWhite=document.getElementById('fillWhite');
+  var cvRings=document.getElementById('fillRings'), ctxR=cvRings.getContext('2d');
+  var RDPR=Math.min(window.devicePixelRatio||1,2);
+  var ctxY=cvYellow.getContext('2d'), ctxW=cvWhite.getContext('2d');
+  var cvGarten=document.getElementById('gartenBlank'), ctxG=cvGarten.getContext('2d');
+  var gebueschWrap=document.getElementById('gebueschWrap'), gebueschHinten=document.getElementById('gebueschHinten');
+  var tableWrap=document.getElementById('tableWrap'), tableShadow=document.getElementById('tableShadow');
+  var hotspot=document.getElementById('tableHotspot'), scrollcue=document.getElementById('scrollcue');
+  var headline=document.getElementById('headline'), zitat=document.getElementById('zitat');
+  var stuhlHinten=document.getElementById('stuhlHinten'), stuhlRechts=document.getElementById('stuhlRechts');
+  var stuhlVorne=document.getElementById('stuhlVorne'), stuhlLinks=document.getElementById('stuhlLinks');
+
+  function clamp(v,lo,hi){ return v<lo?lo:(v>hi?hi:v); }
+  function easeOut(t){ return 1-Math.pow(1-t,3); }
+  function easeInOut(t){ return t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2; }
+  function lerp(a,b,t){ return a+(b-a)*t; }
+
+  var x=0,xTarget=0,y=0,minX=0,maxX=0,centerX=0,iw=0,ih=0,vw=0,vh=0,wLeft=0,wRight=0;
+  var dragging=false,lastPX=0,vx=0,rafId=null,panRAF=null;
+
+  var TOUCHES_REQUIRED=4, touches=0, lastEnd=0, armed=false, locked=false, CENTER_SNAP=isMobile?70:90;
+  var P=0, targetP=0, animRAF=null, MAX_P=2.0;
+  var SCALE_MAX=1.30, TABLE_A=1.10, TABLE_B=2.00, FEATHER=0.13;
+  // Mobil: schnelleres Scroll-Tempo (weniger Zeitversatz), Schieben mit mehr Zeitversatz
+  var SCROLL_MULT=isMobile?0.00150:0.00090, P_EASE=isMobile?0.16:0.12, PAN_EASE=isMobile?0.11:0.16, PAN_GAIN=isMobile?1.35:1.0;
+  var hz=1, hzTarget=1, hzRAF=null;   // leichter Zoom-in bei Headline-Einflug (Desktop)
+  var floating=false;                 // Latch für Schwebe-Zustand (verhindert Flackern am Umschaltpunkt)
+  var tg=0, tgTarget=0, tgRAF=null;   // Mobil: Tisch/Stühle wachsen ASM->ENT beim Headline-Einflug
+  var dwellTimer=null;                // Mobil: 5s-Halt bei fertigem Garten vor dem Dolly
+
+  var TABLE_RATIO=2000/1126, HEAD_RATIO=1024/437, ZITAT_RATIO=1003/848;
+  var TB={ l:0.400, r:0.640, t:0.471, b:0.800 }, TABLE_C={ x:0.520, y:0.635 };
+  var HEAD={ cx:0.508, cy:0.306, w:0.261 };   // Headline-Ruheposition (Frame)
+  var HEAD_GROW=0.50, HEAD_SHIFT_L=0.05;       // Desktop-Dolly: Links-Shift (Anteil Screenbreite) über die Fahrt
+  var HEAD_TOP_GAP=0.05;                        // Desktop-Dolly: End-Abstand der Headline-Oberkante zum oberen Rand (Anteil vh)
+  var HEAD_FLY_MS=isMobile?2000:1500;          // Dauer Fly-in/-out (Mobil mehr Zeitversatz)
+  // Mobil: Tisch/Stühle 30% größer, horizontal zentriert
+  var FURN_W = isMobile ? 1.30 : 1.00;
+  // Dolly-Endziel: Desktop 0.44/1.33 Breite 0.93 | Mobil 0.47/0.55 Breite 1.50 (knapp unter vert. Mitte)
+  var TZ  = isMobile ? { x:0.50, y:0.40, w:0.95 } : { x:0.44, y:1.33, w:0.93 };   // Mobil-Dolly: Zoom auf 0.50/0.40
+  var ASM = { x:0.50, y:0.72, w:0.45 };            // Mobil: Aufbau (kleiner); wächst beim Headline-Einflug auf ENT
+  var ENT = { x:0.50, y:0.72, w:0.60 };            // Mobil: Endgröße nach Headline, Halt während Garten
+  var ZITZOOM=2.5;                                 // Mobil-Dolly: Zoom-Stärke AUF das Zitat (Vorwärts-Dive gecancelt; Tisch/Stühle bleiben stehen)
+  var TABLE_IN = 0.30;                             // wie weit unter dem Rand der Tisch startet (Anteil vh) -> früheres, sichtbares Reingleiten
+  var GARDEN_PAR=0.88;
+  var ZITAT_END={ cx:0.440, cy:0.550, w:0.319 };   // Desktop-Zitat: links (0.44), Endgröße 0.336->0.319 (-5%), schwebt über Tisch
+  // Mobil-spezifisch: Headline oben-zentriert (Breite 0.97x Screen), Zitat 55% @ 0.53/0.55
+  var MOB={ headW:0.90, headCx:0.50, headCy:0.32, zw:0.531, zx:0.50, zy:0.44 };  // Headline 90%; Zitat 0.531 (+5%), Endpos 0.50/0.44 (etwas höher/"nach hinten")
+  var ZSS=2;   // Zitat-Supersampling: PNG ZSS-fach groß rendern, per Transform runterskalieren -> scharf trotz 45°-Drehung. WICHTIG: breatheR45-Keyframe nutzt scale(1/ZSS)=0.5
+  var ZINZOOM=1.15, ZP={ x:0.50, y:0.55 }, HEAD_TOP=0.235;  // Mobil: echter Screen-Fixpunkt; y<0.72 (über den Möbeln) -> Möbel driften beim Zoom nach unten. Kleiner=mehr Abwärtsdrift.
+  // Mobil Phase 5 (P4->5): gelbe Ringe aus Zitat-Mitte (Ursprungspunkt), rein scroll-gebunden
+  var RING_GAP=22, RING_LW=12, RING_CYC=4, RING_MAXA=1.00;  // Abstand(px), Dicke(px), Ringe/Scroll, max Ring-Deckkraft
+
+  // Frame-Mapping (Möbel-Frame FURN_W*100vw, zentriert, bottom:0)
+  var frameW=0, frameH=0, frameLeft=0, frameTop=0;
+  function computeFrame(){ frameW=FURN_W*vw; frameH=frameW/TABLE_RATIO; frameLeft=(vw-frameW)/2; frameTop=vh-frameH; }
+  function fxs(fx){ return frameLeft+fx*frameW; }
+  function fys(fy){ return frameTop+fy*frameH; }
+
+  var CHAIRS=[   // ocx/otop = Objekt-Oberkante im Frame (Dive skaliert von dort nach unten)
+    { el:stuhlHinten, from:'translate(100%,-100%)', dir:[ 1.4,-1.4], fac:0.6, ocx:0.643, otop:0.428 },   // hinten = fern
+    { el:stuhlRechts, from:'translate(100%,25%)',   dir:[ 1.4, 0.4], fac:1.0, ocx:0.690, otop:0.564 },
+    { el:stuhlVorne,  from:'translate(0,100%)',      dir:[ 0.0, 1.4], fac:1.5, ocx:0.462, otop:0.629 },   // vorne = nah
+    { el:stuhlLinks,  from:'translate(-100%,0)',     dir:[-1.4, 0.0], fac:1.0, ocx:0.295, otop:0.489 }
   ];
+  var stepIdx=0, STEPS=5, tableActive=false, idleTimer=null, headlinePlaced=false, headlineFlying=false;
+  function resetChairs(){ CHAIRS.forEach(function(c){ c.el.style.transform=c.from; }); }
 
-  var stage = document.getElementById('stage');
-  var typoLeft = document.getElementById('typoLeft');
-  var typoRight = document.getElementById('typoRight');
-
-  var layerEls = [];          // {img, k, opacity, loaded}
-  var refImg = null;          // vorderste Ebene = Referenz für Layout/Pan-Range
-
-  // Ebenen-Bilder erzeugen und VOR die Typo einfügen
-  LAYERS.forEach(function (L) {
-    var im = document.createElement('img');
-    im.className = 'player';
-    im.src = L.src; im.alt = ''; im.draggable = false;
-    im.style.opacity = L.opacity;
-    if (L.blend) im.style.mixBlendMode = L.blend;
-    stage.insertBefore(im, typoLeft);
-    var rec = { img: im, k: L.k, opacity: L.opacity, loaded: false };
-    im.addEventListener('load', function () { rec.loaded = true; onImgLoad(); });
-    if (im.complete && im.naturalWidth) { rec.loaded = true; }
-    layerEls.push(rec);
-  });
-  // Referenz = die Ebene mit k am nächsten an 1 (vorderste, volle Pan-Weite)
-  refImg = layerEls.reduce(function (a, b) { return Math.abs(b.k-1) < Math.abs(a.k-1) ? b : a; }).img;
-
-  var x = 0, y = 0, minX = 0, maxX = 0, centerX = 0;
-  var iw = 0, ih = 0;
-  var dragging = false, lastPX = 0, vx = 0, rafId = null;
-  var vw = 0, wLeft = 0, wRight = 0;
-
-  function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
-
-  function updateTypo() {
-    var pL = 0, pR = 0;
-    if (centerX - minX > 0) pL = clamp((centerX - x) / (centerX - minX), 0, 1);
-    if (maxX - centerX > 0) pR = clamp((x - centerX) / (maxX - centerX), 0, 1);
-    var startL = -wLeft / 2, endL = vw / 2, cL = startL + pL * (endL - startL);
-    typoLeft.style.transform = 'translate(' + (cL - wLeft/2) + 'px, -50%)';
-    var startR = vw + wRight / 2, endR = vw / 2, cR = startR + pR * (endR - startR);
-    typoRight.style.transform = 'translate(' + (cR - wRight/2) + 'px, -50%)';
-  }
-
-  function apply() {
-    for (var i = 0; i < layerEls.length; i++) {
-      var rec = layerEls[i];
-      // Pan pro Ebene: bei x=centerX alle deckungsgleich, sonst gestaffelt
-      var lx = centerX + (x - centerX) * rec.k;
-      rec.img.style.transform = 'translate(' + lx + 'px,' + y + 'px) scale(' + rec.scale + ')';
+  // ===== Fill-Felder =====
+  var LW=0, LH=0, fmap=null, rmap=null, idataY=null, idataW=null;
+  var maskCv=document.createElement('canvas'), maskCtx=maskCv.getContext('2d'), maskData=null;
+  function buildFields(){
+    LW=200; LH=Math.max(60, Math.round(LW*vh/Math.max(vw,1)));
+    fmap=new Float32Array(LW*LH); rmap=new Float32Array(LW*LH);
+    var ox=fxs(TABLE_C.x)/vw, oy=fys(TABLE_C.y)/vh;   // Reveal-Ursprung = Tischmitte
+    var fmin=1e9,fmax=-1e9,rmin=1e9,rmax=-1e9;
+    for(var j=0;j<LH;j++) for(var i=0;i<LW;i++){
+      var nx=i/(LW-1), ny=j/(LH-1);
+      var nse=0.32*Math.sin(nx*7+ny*3+1.3)+0.22*Math.sin(nx*3-ny*8+4.1)+0.16*Math.sin((nx+ny)*11+2.2)+0.12*Math.sin(nx*15+ny*6+0.7);
+      var d=Math.min(nx,1-nx,ny,1-ny)*2;
+      var fv=d*0.74+nse*0.42; fmap[j*LW+i]=fv; if(fv<fmin)fmin=fv; if(fv>fmax)fmax=fv;
+      var dr=Math.sqrt((nx-ox)*(nx-ox)+(ny-oy)*(ny-oy));
+      var rv=dr*1.7+nse*0.42; rmap[j*LW+i]=rv; if(rv<rmin)rmin=rv; if(rv>rmax)rmax=rv;
     }
-    updateTypo();
+    var fs=(fmax-fmin)||1, rs=(rmax-rmin)||1;
+    for(var k=0;k<fmap.length;k++){ fmap[k]=((fmap[k]-fmin)/fs)*0.90; rmap[k]=((rmap[k]-rmin)/rs)*0.90; }
+    cvYellow.width=LW; cvYellow.height=LH; cvWhite.width=LW; cvWhite.height=LH;
+    idataY=ctxY.createImageData(LW,LH); idataW=ctxW.createImageData(LW,LH);
+    maskCv.width=LW; maskCv.height=LH; maskData=maskCtx.createImageData(LW,LH);
+  }
+  function paintFill(ctx, idata, r,g,b, prog){ var d=idata.data;
+    for(var k=0;k<fmap.length;k++){ var a=clamp((prog-fmap[k])/FEATHER+0.5,0,1); var o=k*4; d[o]=r;d[o+1]=g;d[o+2]=b;d[o+3]=(a*255)|0; }
+    ctx.putImageData(idata,0,0); }
+  function applyFill(ctx, idata, rgb, prog){ if(!fmap)return; if(prog<=0){ ctx.clearRect(0,0,LW,LH); return; } paintFill(ctx,idata,rgb[0],rgb[1],rgb[2],prog); }
+
+  var gartenImg=new Image(); var gartenReady=false;
+  gartenImg.onload=function(){ gartenReady=true; render(); }; gartenImg.src='assets/garten_07.jpg';
+  function drawCover(ctx,im,W,H){ var ir=im.naturalWidth/im.naturalHeight, cr=W/H, dw,dh;
+    if(ir>cr){ dh=H; dw=H*ir; } else { dw=W; dh=W/ir; } ctx.drawImage(im,(W-dw)/2,(H-dh)/2,dw,dh); }
+  function applyGarden(prog){
+    var W=cvGarten.width, H=cvGarten.height;
+    if(!gartenReady || prog<=0){ ctxG.clearRect(0,0,W,H); return; }
+    var md=maskData.data;
+    for(var k=0;k<rmap.length;k++){ var a=clamp((prog-rmap[k])/FEATHER+0.5,0,1); var o=k*4; md[o]=255;md[o+1]=255;md[o+2]=255;md[o+3]=(a*255)|0; }
+    maskCtx.putImageData(maskData,0,0);
+    ctxG.clearRect(0,0,W,H); drawCover(ctxG, gartenImg, W, H);
+    ctxG.globalCompositeOperation='destination-in'; ctxG.imageSmoothingEnabled=true; ctxG.drawImage(maskCv, 0,0,W,H);
+    ctxG.globalCompositeOperation='source-over';
   }
 
-  function measureTypo() {
-    wLeft = typoLeft.offsetWidth; wRight = typoRight.offsetWidth;
-    typoLeft.style.visibility = 'visible'; typoRight.style.visibility = 'visible';
+  // Mobil Phase 5: gelbe konzentrische Ringe aus der Zitat-Mitte + gelb-transparente Fade-Fläche
+  function drawRings(P){
+    var W=cvRings.width, H=cvRings.height; if(!W) return;
+    ctxR.setTransform(1,0,0,1,0,0); ctxR.clearRect(0,0,W,H);
+    var rp=clamp(P-4,0,1); if(rp<=0) return;              // erst nach Zitat-Endposition (P>4)
+    // Ringe aus der Zitat-Mitte, rein scroll-gebunden (aus Ursprungspunkt nach außen)
+    var s=RDPR, zcx=(isMobile?MOB.zx:ZITAT_END.cx), zcy=(isMobile?MOB.zy:ZITAT_END.cy);
+    var cx=zcx*vw*s, cy=zcy*vh*s, G=RING_GAP*s;
+    var maxR=Math.hypot(Math.max(cx,W-cx),Math.max(cy,H-cy))+G;
+    var off=(rp*G*RING_CYC)%G;                            // Scroll schiebt die Ringe nach außen
+    ctxR.strokeStyle='#ffff66'; ctxR.lineWidth=RING_LW*s;
+    for(var r=off; r<maxR; r+=G){ if(r<1) continue;
+      var a=(1-r/maxR);                                   // hart am Zentrum (voll), zum Rand ausblendend
+      ctxR.globalAlpha=clamp(a,0,1)*RING_MAXA;
+      ctxR.beginPath(); ctxR.arc(cx,cy,r,0,7); ctxR.stroke();
+    }
+    ctxR.globalAlpha=RING_MAXA; ctxR.fillStyle='#ffff66';  // Ursprungspunkt
+    ctxR.beginPath(); ctxR.arc(cx,cy,RING_LW*s*0.7,0,7); ctxR.fill();
+    ctxR.globalAlpha=1;
   }
 
-  function layout(recenter) {
-    if (!refImg.naturalWidth) return;
-    vw = stage.clientWidth; var vh = stage.clientHeight;
-    var ratio = refImg.naturalWidth / refImg.naturalHeight;
-    iw = vh * ratio; ih = vh;
-    var minFactor = isMobile ? 1.6 : 1.8;
-    if (iw < vw * minFactor) { iw = vw * minFactor; ih = iw / ratio; }
+  function measureTypo(){ wLeft=typoLeft.offsetWidth; wRight=typoRight.offsetWidth; typoLeft.style.visibility='visible'; typoRight.style.visibility='visible'; }
+  function updateHotspot(){ hotspot.style.left=fxs(TB.l)+'px'; hotspot.style.top=fys(TB.t)+'px';
+    hotspot.style.width=((TB.r-TB.l)*frameW)+'px'; hotspot.style.height=((TB.b-TB.t)*frameH)+'px'; }
+  // Klickfläche der tatsächlich transformierten Tischgröße nachführen (Kamera skaliert/verschiebt den Tisch)
+  function syncHotspot(){ var r=tableShadow.getBoundingClientRect(); if(r.width<=0) return;
+    hotspot.style.left=(r.left+TB.l*r.width)+'px'; hotspot.style.top=(r.top+TB.t*r.height)+'px';
+    hotspot.style.width=((TB.r-TB.l)*r.width)+'px'; hotspot.style.height=((TB.b-TB.t)*r.height)+'px'; }
+  function placeHeadlineRect(){ var w=HEAD.w*vw, hh=w/HEAD_RATIO;   // Größe fix (viewport), Position folgt Frame
+    headline.style.width=w+'px'; headline.style.left=(fxs(HEAD.cx)-w/2)+'px'; headline.style.top=(fys(HEAD.cy)-hh/2)+'px'; }
+  function placeHeadlineHz(hzVal){ var w=HEAD.w*vw*hzVal, hh=w/HEAD_RATIO;   // Ruheposition inkl. hz-Zoom zur Bildmitte
+    var cx=vw/2+(fxs(HEAD.cx)-vw/2)*hzVal, cy=vh/2+(fys(HEAD.cy)-vh/2)*hzVal;
+    headline.style.width=w+'px'; headline.style.left=(cx-w/2)+'px'; headline.style.top=(cy-hh/2)+'px'; }
+  function placeHeadlineMob(){ var w=MOB.headW*vw, hh=w/HEAD_RATIO;   // Mobil: über dem Tisch, 90% Displaybreite
+    headline.style.width=w+'px'; headline.style.left=(MOB.headCx*vw-w/2)+'px'; headline.style.top=(MOB.headCy*vh-hh/2)+'px'; }
+  function rectZitatEnd(){ var w=ZITAT_END.w*vw, hh=w/ZITAT_RATIO;
+    return { l:(ZITAT_END.cx*vw)-w/2, t:(ZITAT_END.cy*vh)-hh/2, w:w }; }
 
-    minX = vw - iw; maxX = 0; centerX = (vw - iw) / 2;
-    y = (vh - ih) / 2;
-    var maxDev = centerX - minX;           // max. Auslenkung aus der Mitte
+  // Zoom-Kamera (uniform): Tisch -> TZ, mit Frame-Mapping
+  var camS=1, camTx=0, camTy=0, entS=1, entTx=0, entTy=0, asmS=1, asmTx=0, asmTy=0;
+  function computeZoom(){
+    var S=TZ.w/(0.24*FURN_W);                          // Objektbreite 0.24 im Frame
+    camS=S; camTx=TZ.x*vw-(frameLeft+TABLE_C.x*frameW*S); camTy=TZ.y*vh-(frameTop+TABLE_C.y*frameH*S);
+    if(isMobile){
+      var Se=ENT.w/(0.24*FURN_W);                       // Endgröße-Kamera (nach Headline)
+      entS=Se; entTx=ENT.x*vw-(frameLeft+TABLE_C.x*frameW*Se); entTy=ENT.y*vh-(frameTop+TABLE_C.y*frameH*Se);
+      var Sa=ASM.w/(0.24*FURN_W);                       // Aufbau-Kamera (kleiner)
+      asmS=Sa; asmTx=ASM.x*vw-(frameLeft+TABLE_C.x*frameW*Sa); asmTy=ASM.y*vh-(frameTop+TABLE_C.y*frameH*Sa); }
+  }
 
-    // Höhe + Overscan pro Ebene: langsamere (kleines k) brauchen mehr Rand
-    for (var i = 0; i < layerEls.length; i++) {
-      var rec = layerEls[i];
-      rec.img.style.height = ih + 'px';
-      // Overscan so, dass die Kante nie ins Bild wandert (+ kleine Reserve)
-      var gap = maxDev * (1 - rec.k);
-      rec.scale = 1 + (2 * gap) / iw + 0.03;
+  function layout(recenter){
+    vw=stage.clientWidth; vh=stage.clientHeight;
+    var ratio=img.naturalWidth/img.naturalHeight;
+    iw=vh*ratio; ih=vh; var mf=isMobile?1.6:1.8; if(iw<vw*mf){ iw=vw*mf; ih=iw/ratio; }
+    img.style.height=ih+'px';
+    minX=vw-iw; maxX=0; centerX=(vw-iw)/2; y=(vh-ih)/2;
+    computeFrame();
+    // Möbel-Frame Größe/Position (Mobil 30% größer, zentriert)
+    var fwPx=frameW, flPx=frameLeft;
+    [stuhlHinten,stuhlLinks,stuhlRechts,stuhlVorne,tableWrap].forEach(function(e){ e.style.width=fwPx+'px'; e.style.left=flPx+'px'; });
+    // Fill/Garten-Höhe an tatsächlichen Viewport (Mobil-Browserrand)
+    cvYellow.style.height=vh+'px'; cvWhite.style.height=vh+'px'; cvGarten.style.height=vh+'px';
+    cvRings.style.height=vh+'px'; cvRings.width=Math.round(vw*RDPR); cvRings.height=Math.round(vh*RDPR);
+    measureTypo(); buildFields(); updateHotspot(); placeHeadlineRect(); computeZoom();
+    cvGarten.width=Math.round(vw); cvGarten.height=Math.round(vh);
+    if(locked){ x=centerX; xTarget=centerX; } else { x=recenter?clamp(centerX,minX,maxX):clamp(x,minX,maxX); xTarget=x; }
+    render();
+  }
+
+  function updateTypo(fade){
+    var pL=0,pR=0;
+    if(centerX-minX>0) pL=clamp((centerX-x)/(centerX-minX),0,1);
+    if(maxX-centerX>0) pR=clamp((x-centerX)/(maxX-centerX),0,1);
+    var cL=-wLeft/2+pL*(vw/2+wLeft/2); typoLeft.style.transform='translate('+(cL-wLeft/2)+'px,-50%)';
+    var cR=vw+wRight/2+pR*(vw/2-(vw+wRight/2)); typoRight.style.transform='translate('+(cR-wRight/2)+'px,-50%)';
+    typoLeft.style.opacity=fade; typoRight.style.opacity=fade;
+  }
+
+  function registerEnd(side){ if(locked||side===lastEnd)return; lastEnd=side; touches++; if(touches>=TOUCHES_REQUIRED) armed=true; }
+  function maybeLock(){ if(armed && !locked && Math.abs(x-centerX)<=CENTER_SNAP){ doLock(); } }
+  function doLock(){ locked=true; stage.classList.add('locked'); x=centerX; xTarget=centerX; scrollcue.classList.add('on'); render(); }
+
+  function shakeIt(cls){ tableShadow.classList.remove('shake','wiggle'); void tableShadow.offsetWidth; tableShadow.classList.add(cls); }
+  function activateTable(){ if(tableActive)return; tableActive=true; hotspot.classList.add('active'); shakeIt('shake');
+    idleTimer=setInterval(function(){ if(tableActive && stepIdx<STEPS) shakeIt('wiggle'); }, 3000); }
+  function deactivateTable(){ if(!tableActive)return; tableActive=false; hotspot.classList.remove('active');
+    if(idleTimer){clearInterval(idleTimer);idleTimer=null;} stepIdx=0; resetChairs(); flyOutHeadline(); MAX_P=2.0; }
+
+  var headFlyTimer=null;
+  function placeHeadline(){                       // sauberer Fly-IN
+    headlinePlaced=true; headlineFlying=true;
+    if(headFlyTimer){clearTimeout(headFlyTimer);headFlyTimer=null;}
+    headline.classList.remove('breathe');
+    if(!isMobile){ hzTarget=1.12; startHz(); }        // Zoom-in beim Einflug nur Desktop
+    if(isMobile){ tgTarget=1; startTg(); }            // Mobil: Tisch/Stühle wachsen ASM->ENT, während Headline einfliegt
+    if(isMobile) placeHeadlineMob(); else placeHeadlineHz(hzTarget);   // Einflug zielt direkt auf die Endposition -> kein Sprung
+    headline.classList.add('flyin');
+    headline.style.opacity='0'; headline.style.transform='scale(7)'; void headline.offsetWidth;
+    requestAnimationFrame(function(){ headline.style.opacity='1'; headline.style.transform='scale(1)'; });
+    headFlyTimer=setTimeout(function(){ if(headlinePlaced){ headline.classList.remove('flyin'); headline.style.transform=''; headline.classList.add('breathe'); } headlineFlying=false; headFlyTimer=null; }, HEAD_FLY_MS);
+  }
+  function startHz(){ if(hzRAF!=null) return; hzRAF=requestAnimationFrame(function loop(){ hz+=(hzTarget-hz)*0.14;
+    if(Math.abs(hzTarget-hz)<0.001){ hz=hzTarget; hzRAF=null; render(); return; } render(); hzRAF=requestAnimationFrame(loop); }); }
+  function startTg(){ if(tgRAF!=null) return; tgRAF=requestAnimationFrame(function loop(){ tg+=(tgTarget-tg)*0.08;   // langsam/weich
+    if(Math.abs(tgTarget-tg)<0.001){ tg=tgTarget; tgRAF=null; render(); return; } render(); tgRAF=requestAnimationFrame(loop); }); }
+  function flyOutHeadline(){                       // sauberer Fly-OUT (reverse)
+    if(!headlinePlaced && !headlineFlying){ hideHeadline(); return; }
+    headlinePlaced=false; headlineFlying=true;
+    if(headFlyTimer){clearTimeout(headFlyTimer);headFlyTimer=null;}
+    headline.classList.remove('breathe');
+    if(isMobile) placeHeadlineMob(); else placeHeadlineHz(hz);   // an aktuelle Ruheposition, dann rausfliegen
+    headline.style.transform='scale(1)'; headline.style.opacity='1'; void headline.offsetWidth;
+    headline.classList.add('flyin');
+    requestAnimationFrame(function(){ headline.style.transform='scale(7)'; headline.style.opacity='0'; });
+    headFlyTimer=setTimeout(function(){ hideHeadline(); headlineFlying=false; headFlyTimer=null; }, HEAD_FLY_MS);
+    if(isMobile){ tgTarget=0; startTg(); }           // Tisch schrumpft zurück auf ASM (reverse)
+  }
+  function hideHeadline(){ headlinePlaced=false; headline.classList.remove('breathe','flyin'); headline.style.opacity='0'; headline.style.transform='scale(7)'; hz=1; hzTarget=1; tg=0; tgTarget=0; }
+
+  function onTableClick(){
+    if(!tableActive) return;
+    if(stepIdx<4){ shakeIt('shake'); stepIdx++; render(); }   // render() sofort -> Stuhl fährt gleich rein (nicht erst beim Scrollen)
+    else if(stepIdx===4){ shakeIt('shake'); placeHeadline(); stepIdx++; MAX_P=isMobile?3.0:5.0; render(); }  // Mobil: Garten(3)->Dolly(4). Desktop: Dolly(4)->Zitat-Spin(5)
+  }
+  hotspot.addEventListener('click', onTableClick);
+
+  // Kamera mit zusätzlichem Zoom-in (hzVal) um die Bildmitte
+  function mcam(Tx,Ty,S,hzVal){ var cx=vw/2, cy=vh/2;
+    return 'translate('+cx+'px,'+cy+'px) scale('+hzVal+') translate('+(-cx)+'px,'+(-cy)+'px) translate('+Tx+'px,'+Ty+'px) scale('+S+')'; }
+  // Durchgehende Tisch-Transformation: Einfahrt (translateY) + hz-Zoom, ohne Verzweigung -> kein Sprung/Wackler
+  function mcamY(hzVal, ty){ var cx=vw/2, cy=vh/2;
+    return 'translate('+cx+'px,'+cy+'px) scale('+hzVal+') translate('+(-cx)+'px,'+(-cy)+'px) translate(0,'+ty+'px)'; }
+
+  function render(){
+    if(locked){
+      var seqScale=lerp(1, SCALE_MAX, easeOut(clamp(P,0,1)));
+      img.style.transform='translate('+centerX+'px,'+y+'px) scale('+seqScale+')';
+      updateTypo(1-clamp(P/0.05,0,1));
+      if(P>=0.03) scrollcue.classList.remove('on'); else scrollcue.classList.add('on');
+    } else { img.style.transform='translate('+x+'px,'+y+'px)'; updateTypo(1); }
+
+    applyFill(ctxY, idataY, [255,255,102], clamp(P,0,1));
+    applyFill(ctxW, idataW, [255,255,255], clamp(P-1,0,1));
+    var tp=easeOut(clamp((P-TABLE_A)/(TABLE_B-TABLE_A),0,1));
+    applyGarden(clamp(P-2,0,1));
+
+    if(isMobile){
+      // ===== Mobil: P1->2 Aufbau (ASM, wächst mit Headline auf ENT) | P2->3 Garten (Halt) | 5s | P3->4 Dolly-Zoom + Zitat =====
+      var aE=easeInOut(clamp(P-1,0,1));                 // Entrance (P1->2)
+      var tgE=easeInOut(tg);
+      var setS=lerp(asmS,entS,tgE), setTx=lerp(asmTx,entTx,tgE), setTy=lerp(asmTy,entTy,tgE);
+      var zin=easeInOut(clamp((P-3)/0.85,0,1));         // Zitat-Einflug (P3->3.85, etwas langsamer)
+      if(P>2.02) stage.classList.add('zooming'); else stage.classList.remove('zooming');
+      gebueschWrap.style.opacity=0; gebueschWrap.style.transform=''; gebueschHinten.classList.remove('breathe');
+      // Tisch/Stühle/Garten: Aufbau -> ENT, danach fest. Beim Zitat-Einflug leichter uniformer Zoom auf Wiesen-Punkt (ZP)
+      var Sm=(P<=2)?1+(setS-1)*aE:setS, Txm=(P<=2)?setTx*aE:setTx, Tym=(P<=2)?setTy*aE:setTy;
+      var belowY=(1-aE)*vh*TABLE_IN;
+      var mcC=mcam(Txm,Tym,Sm,1);
+      var zz=(P>3)?(1+(ZINZOOM-1)*zin):1;              // leichter Zoom während Zitat-Einflug
+      var Sx=ZP.x*vw, Sy=ZP.y*vh;                       // ECHTER Screen-Fixpunkt; pro Element umgerechnet (Möbel sind unten verankert)
+      var zwFor=function(el){ if(zz===1) return ''; var px=Sx-el.offsetLeft, py=Sy-el.offsetTop;
+        return 'translate('+px+'px,'+py+'px) scale('+zz+') translate('+(-px)+'px,'+(-py)+'px) '; };
+      tableWrap.style.transformOrigin='0 0'; tableWrap.style.transform=zwFor(tableWrap)+'translateY('+belowY+'px) '+mcC;
+      for(var c2=0;c2<CHAIRS.length;c2++){ var e2=CHAIRS[c2].el; e2.style.transformOrigin='0 0';
+        if(c2<stepIdx){ e2.style.transform=zwFor(e2)+mcC; }
+        else { e2.style.transform=zwFor(e2)+'translate('+(CHAIRS[c2].dir[0]*vw)+'px,'+(CHAIRS[c2].dir[1]*vh)+'px) '+mcC; } }
+      if(zz!==1){ cvGarten.style.transformOrigin=(ZP.x*100)+'% '+(ZP.y*100)+'%'; cvGarten.style.transform='scale('+zz+')'; }
+      else { cvGarten.style.transformOrigin='50% 50%'; cvGarten.style.transform=''; }
+      // Headline: Einflug -> höher (HEAD_TOP), dann Schweben
+      if(headlinePlaced && !headlineFlying){
+        var hcy=(P>3)?lerp(MOB.headCy, HEAD_TOP, zin):MOB.headCy;   // Einflug hoch
+        var wH=MOB.headW*vw, hhH=wH/HEAD_RATIO;
+        headline.style.width=wH+'px'; headline.style.left=(MOB.headCx*vw-wH/2)+'px'; headline.style.top=(hcy*vh-hhH/2)+'px';
+        headline.style.transform=''; headline.style.opacity='1';
+        if(!headline.classList.contains('breathe')) headline.classList.add('breathe');
+      }
+      // 5s-Halt: bei fertigem Garten (P~3) Zitat-Einflug erst nach 5s freigeben
+      if(headlinePlaced){
+        if(P>=2.97 && MAX_P<5){ if(!dwellTimer) dwellTimer=setTimeout(function(){ MAX_P=5.0; dwellTimer=null; }, 5000); }
+        else if(P<2.9 && dwellTimer){ clearTimeout(dwellTimer); dwellTimer=null; }
+      }
+      // Zitat: Einflug (groß->1) dreht rechts auf 45° -> Endpos atmet bei 45°
+      if(P>3){ var wzM=MOB.zw*vw*ZSS, hzM=wzM/ZITAT_RATIO;   // ZSS-fach groß gerendert (scharf); Transform skaliert um 1/ZSS zurück
+        zitat.style.width=wzM+'px'; zitat.style.left=(MOB.zx*vw-wzM/2)+'px'; zitat.style.top=(MOB.zy*vh-hzM/2)+'px';
+        zitat.style.opacity=clamp(zin*2,0,1); zitat.style.filter='none';
+        if(zin<1){ zitat.classList.remove('breathe','breatheR45'); zitat.style.transform='scale('+(lerp(9,1,zin)/ZSS)+') rotate('+(35*zin)+'deg)'; }
+        else { zitat.classList.remove('breathe'); zitat.style.transform=''; if(!zitat.classList.contains('breatheR45')) zitat.classList.add('breatheR45'); }
+      } else { zitat.classList.remove('breathe','breatheR45'); zitat.style.transform=''; zitat.style.filter='none'; zitat.style.opacity=0; }
+      drawRings(P);   // Phase 5: gelbe Ringe + Fade-Wash aus Zitat-Mitte (P>4)
+    } else {
+      // ===== Desktop: Dolly P3->4 + rotateY-Schweben am Ende =====
+      var z=easeInOut(clamp(P-3,0,1));
+      if(z>0){
+        stage.classList.add('zooming');
+        var effHz=1+(hz-1)*(1-z);      // Zoom-in am Einflug voll, läuft mit Dolly aus (Ziele bleiben verifiziert)
+        var S=1+(camS-1)*z, Tx=camTx*z, Ty=camTy*z, mcD=mcam(Tx,Ty,S,effHz);
+        [tableWrap,stuhlHinten,stuhlLinks,stuhlRechts,stuhlVorne].forEach(function(e){
+          e.style.transformOrigin='0 0'; e.style.transform=mcD; });
+        var gs=(1+(camS-1)*z*GARDEN_PAR)*effHz;
+        cvGarten.style.transformOrigin='50% 0'; cvGarten.style.transform='scale('+gs+')';
+        gebueschWrap.style.transformOrigin='50% 0'; gebueschWrap.style.transform='scale('+gs+')';
+        gebueschWrap.style.opacity=clamp(z*3,0,1);
+        if(!gebueschHinten.classList.contains('breathe')) gebueschHinten.classList.add('breathe');
+        if(z>=0.995) floating=true; else if(z<0.92) floating=false;   // Latch: kein Flackern am Umschaltpunkt
+        if(headlinePlaced && !headlineFlying){                        // Dolly: kein Schrumpfen, leichter Links-Shift, wandert zur Oberkante
+          var w=HEAD.w*vw*hz, hh=w/HEAD_RATIO;                        // Größe konstant (auf Einflug-Größe hz eingefroren)
+          var scx=vw/2+(fxs(HEAD.cx)-vw/2)*effHz - HEAD_SHIFT_L*vw*z; // leichter Links-Shift über die Fahrt
+          var topStart=(vh/2+(fys(HEAD.cy)-vh/2)*hz)-(HEAD.w*vw*hz/HEAD_RATIO)/2;  // Oberkante bei z=0
+          var topY=lerp(topStart, HEAD_TOP_GAP*vh, z);               // wandert zur Oberkante, Endabstand HEAD_TOP_GAP
+          headline.style.width=w+'px'; headline.style.left=(scx-w/2)+'px'; headline.style.top=topY+'px'; headline.style.opacity='1';
+          if(floating){ if(!headline.classList.contains('floatL')){ headline.classList.remove('breathe'); headline.style.transform=''; headline.classList.add('floatL'); } }
+          else { if(!headline.classList.contains('breathe')){ headline.classList.remove('floatL'); headline.style.transform=''; headline.classList.add('breathe'); } }
+        }
+        var qp=clamp((z-0.75)/0.25,0,1);                              // Zitat-Einflug (letztes Viertel des Dolly)
+        if(qp>0){ var zwd=ZITAT_END.w*vw, hhz=zwd/ZITAT_RATIO;
+          zitat.style.width=zwd+'px'; zitat.style.left=(ZITAT_END.cx*vw-zwd/2)+'px'; zitat.style.top=(ZITAT_END.cy*vh-hhz/2)+'px';
+          zitat.style.opacity=clamp(qp*2,0,1);
+          zitat.style.filter=(qp>=1)?'':'none';         // Schatten erst an der Endposition
+          zitat.classList.remove('floatR','breathe');
+          var qe=easeInOut(qp);
+          var spin=clamp(P-4,0,1);                       // Phase 5 (P4->5): volle Umdrehung, scroll-scrubbed, Reverse = zurück
+          var rot=40*qe + 360*spin;                      // Einflug rechtsrum 0->40°, danach 360° weiter (endet wieder bei 40°)
+          zitat.style.transform='translateY('+lerp(0.42*vh,0,qe)+'px) scale('+lerp(8,1,qe)+') rotate('+rot+'deg)';
+        } else { zitat.classList.remove('breathe','floatR'); zitat.style.transform=''; zitat.style.filter=''; zitat.style.opacity=0; }
+        drawRings(P);   // Phase 5: gelbe Ringe aus Zitat-Mitte, zusätzlich zur 360°-Drehung (P>4)
+      } else {
+        stage.classList.remove('zooming'); floating=false;
+        // Tisch: Einfahrt + hz-Zoom in EINER durchgehenden Transformation (kein Umschalt-Sprung, Reverse identisch)
+        var slidePx=(1-tp)*frameH;
+        tableWrap.style.transformOrigin='0 0'; tableWrap.style.transform=mcamY(hz, slidePx);
+        cvGarten.style.transformOrigin='50% 0'; cvGarten.style.transform='scale('+hz+')';
+        for(var ci=0;ci<CHAIRS.length;ci++){ if(ci<stepIdx){ CHAIRS[ci].el.style.transformOrigin='0 0'; CHAIRS[ci].el.style.transform=mcam(0,0,1,hz); } else { CHAIRS[ci].el.style.transformOrigin=''; CHAIRS[ci].el.style.transform=CHAIRS[ci].from; } }
+        zitat.classList.remove('breathe','floatR'); zitat.style.transform=''; zitat.style.filter=''; zitat.style.opacity=0;
+        gebueschWrap.style.opacity=0; gebueschWrap.style.transform=''; gebueschHinten.classList.remove('breathe');
+        if(headlinePlaced && !headlineFlying){ headline.classList.remove('floatL');
+          var wR=HEAD.w*vw*hz, hhR=wR/HEAD_RATIO;      // Headline mit hz zur Bildmitte gezoomt
+          var bx=fxs(HEAD.cx), by=fys(HEAD.cy);
+          var zx=vw/2+(bx-vw/2)*hz, zy=vh/2+(by-vh/2)*hz;
+          headline.style.width=wR+'px'; headline.style.left=(zx-wR/2)+'px'; headline.style.top=(zy-hhR/2)+'px';
+          if(!headline.classList.contains('breathe')) headline.classList.add('breathe');
+        }
+      }
     }
 
-    measureTypo();
-    x = recenter ? clamp(centerX, minX, maxX) : clamp(x, minX, maxX);
-    apply();
+    if(P>1.9 && P<2.2) syncHotspot();   // Klickfläche auf den sichtbaren (transformierten) Tisch legen
+    if(P>=1.98) activateTable(); else if(P<1.90) deactivateTable();
   }
 
-  var started = false;
-  function onImgLoad() {
-    // starten, sobald die Referenz-Ebene Maße hat
-    if (!started && refImg.naturalWidth) { started = true; layout(true); }
-    else if (started) { layout(false); }
-  }
+  function animateP(){ var d=targetP-P;
+    if(Math.abs(d)<0.0005){ P=targetP; render(); animRAF=null; return; }
+    P+=d*P_EASE; render(); animRAF=requestAnimationFrame(animateP); }
+  function nudgeP(delta){ targetP=clamp(targetP+delta,0,MAX_P); if(!animRAF) animRAF=requestAnimationFrame(animateP); }
 
-  function momentum() {
-    vx *= 0.94;
-    if (Math.abs(vx) < 0.1) { rafId = null; return; }
-    x = clamp(x + vx, minX, maxX); apply();
-    rafId = requestAnimationFrame(momentum);
-  }
-  function onDown(e) {
-    dragging = true; stage.classList.add('dragging');
-    lastPX = e.clientX; vx = 0;
-    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-    stage.setPointerCapture && stage.setPointerCapture(e.pointerId);
-  }
-  function onMove(e) {
-    if (!dragging) return;
-    var dx = e.clientX - lastPX; lastPX = e.clientX; vx = dx;
-    x = clamp(x + dx, minX, maxX); apply();
-  }
-  function onUp() {
-    if (!dragging) return; dragging = false; stage.classList.remove('dragging');
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-      rafId = requestAnimationFrame(momentum);
-  }
-  stage.addEventListener('pointerdown', onDown);
-  stage.addEventListener('pointermove', onMove);
-  stage.addEventListener('pointerup', onUp);
-  stage.addEventListener('pointercancel', onUp);
-  stage.addEventListener('lostpointercapture', onUp);
+  // Centerfold-Pan: Drag direkt (+Momentum), Scrollrad geglättet (Ease)
+  function momentum(){ vx*=0.94; if(Math.abs(vx)<0.1){rafId=null;return;} x=clamp(x+vx,minX,maxX); xTarget=x; render(); maybeLock(); rafId=requestAnimationFrame(momentum); }
+  function smoothPan(){ var d=xTarget-x; if(Math.abs(d)<0.5){ x=xTarget; render(); panRAF=null; maybeLock(); return; }
+    x+=d*PAN_EASE; render(); if(x<=minX+18) registerEnd(-1); else if(x>=maxX-18) registerEnd(1); maybeLock(); panRAF=requestAnimationFrame(smoothPan); }
+  function onDown(e){ if(locked||e.pointerType==='touch')return; dragging=true; stage.classList.add('dragging'); lastPX=e.clientX; vx=0;
+    if(rafId){cancelAnimationFrame(rafId);rafId=null;} if(panRAF){cancelAnimationFrame(panRAF);panRAF=null;}
+    stage.setPointerCapture&&stage.setPointerCapture(e.pointerId); }
+  function onMove(e){ if(!dragging||locked||e.pointerType==='touch')return; var dx=e.clientX-lastPX; lastPX=e.clientX; vx=dx;
+    x=clamp(x+dx,minX,maxX); xTarget=x; render(); if(x<=minX+18) registerEnd(-1); else if(x>=maxX-18) registerEnd(1); maybeLock(); }
+  function onUp(){ if(!dragging)return; dragging=false; stage.classList.remove('dragging');
+    if(!locked && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) rafId=requestAnimationFrame(momentum); maybeLock(); }
+  stage.addEventListener('pointerdown',onDown); stage.addEventListener('pointermove',onMove);
+  stage.addEventListener('pointerup',onUp); stage.addEventListener('pointercancel',onUp); stage.addEventListener('lostpointercapture',onUp);
 
-  stage.addEventListener('wheel', function (e) {
-    e.preventDefault();
-    if (rafId) { cancelAnimationFrame(rafId); rafId = null; vx = 0; }
-    var dy = e.deltaY, dx = e.deltaX;
-    if (e.deltaMode === 1) { dy *= 16; dx *= 16; } else if (e.deltaMode === 2) { dy *= vw; dx *= vw; }
-    var delta = Math.abs(dy) > Math.abs(dx) ? dy : dx;
-    x = clamp(x - delta, minX, maxX); apply();
+  // Trackpad/Wheel: Timeline-Scroll (vertikal) vs. Schieben (horizontal), Schwung-Spitzen begrenzt
+  var WHEEL_CAP=130;
+  stage.addEventListener('wheel', function(e){
+    e.preventDefault(); var dy=e.deltaY,dx=e.deltaX;
+    if(e.deltaMode===1){dy*=16;dx*=16;} else if(e.deltaMode===2){dy*=vw;dx*=vw;}
+    if(locked){
+      // Timeline vor allem vertikal; horizontal nur wenn klar dominant (bewusstes Wischen)
+      var d=(Math.abs(dx)>Math.abs(dy)*1.8)?dx:dy;
+      nudgeP(clamp(d,-WHEEL_CAP,WHEEL_CAP)*SCROLL_MULT); return;
+    }
+    if(rafId){cancelAnimationFrame(rafId);rafId=null;vx=0;}
+    var delta=Math.abs(dy)>Math.abs(dx)?dy:dx;
+    delta=clamp(delta,-WHEEL_CAP,WHEEL_CAP);
+    xTarget=clamp((panRAF?xTarget:x)-delta,minX,maxX);   // Ease-Ziel (Schieben)
+    if(!panRAF) panRAF=requestAnimationFrame(smoothPan);
   }, { passive:false });
 
-  window.addEventListener('keydown', function (e) {
-    var step = e.shiftKey ? 200 : 60;
-    if (e.key === 'ArrowLeft')  { x = clamp(x + step, minX, maxX); apply(); }
-    if (e.key === 'ArrowRight') { x = clamp(x - step, minX, maxX); apply(); }
+  var tX=null,tY=null;
+  window.addEventListener('touchstart',function(e){ tX=e.touches[0].clientX; tY=e.touches[0].clientY;
+    if(!locked){ if(rafId){cancelAnimationFrame(rafId);rafId=null;vx=0;} xTarget=x; } },{passive:true});
+  window.addEventListener('touchmove',function(e){
+    if(tX===null)return; var nx=e.touches[0].clientX,ny=e.touches[0].clientY; var dx=tX-nx,dy=tY-ny; tX=nx; tY=ny;
+    if(locked){ nudgeP(dy*SCROLL_MULT*1.15); }            // Scrollen (vertikal) -> P
+    else { var pd=(Math.abs(dx)>=Math.abs(dy))?dx:dy; xTarget=clamp(xTarget-pd*PAN_GAIN,minX,maxX); if(!panRAF) panRAF=requestAnimationFrame(smoothPan); }  // Schieben: dominante Wischrichtung (hoch ODER quer) -> Centerfold-Pan
+  },{passive:true});
+  window.addEventListener('touchend',function(){ tX=null;tY=null; });
+
+  window.addEventListener('keydown',function(e){
+    if(locked){ if(e.key==='ArrowDown') nudgeP(0.06); if(e.key==='ArrowUp') nudgeP(-0.06); return; }
+    var step=e.shiftKey?200:60;
+    if(e.key==='ArrowLeft'){ xTarget=clamp(x+step,minX,maxX); if(!panRAF) panRAF=requestAnimationFrame(smoothPan); }
+    if(e.key==='ArrowRight'){ xTarget=clamp(x-step,minX,maxX); if(!panRAF) panRAF=requestAnimationFrame(smoothPan); }
   });
 
-  window.addEventListener('resize', function () { layout(false); });
-  window.addEventListener('orientationchange', function () { layout(true); });
+  window.addEventListener('resize', function(){ layout(false); });
+  window.addEventListener('orientationchange', function(){ layout(true); });
 
-  // Falls die Referenz schon geladen ist
-  if (refImg.complete && refImg.naturalWidth) { started = true; layout(true); }
+  resetChairs(); hideHeadline();
+  if(img.complete && img.naturalWidth) layout(true); else img.addEventListener('load', function(){ layout(true); });
 })();
 </script>
 </body>
