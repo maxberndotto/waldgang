@@ -1,7 +1,7 @@
 /* Abdruck — Service Worker.
    Hält die App vollständig offline vor. Beim Ändern der Dateien VERSION erhöhen. */
 
-const VERSION = "abdruck-v1";
+const VERSION = "abdruck-v2";
 const SHELL = [
   "./",
   "./index.html",

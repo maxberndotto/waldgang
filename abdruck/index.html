@@ -193,10 +193,10 @@
 const PALETTES = [
   { id:"nebel",  name:"Nebel",  stops:["#4646ff","#7f4dff","#b263fc","#e92bff","#ff2f92","#ff6b8b","#5db4ff"] },
   { id:"retro",  name:"Retro",  stops:["#f4ff4a","#37f877","#29cdf8","#4646ff","#a71979","#e92bff","#ff4331","#fdd034"] },
-  { id:"sonne",  name:"Sonne",  stops:["#ffd852","#ff9f1c","#f02167","#871080","#3a0b52","#d9564e","#ffc300"] },
+  { id:"sonne",  name:"Sonne",  stops:["#ffd852","#ff9f1c","#f02167","#a3178f","#6b1a7a","#d9564e","#ffc300"] },
   { id:"aqua",   name:"Aqua",   stops:["#00c1ff","#3fcaea","#37f877","#f7f681","#fa9b91","#b263fc","#1148ab"] },
-  { id:"abend",  name:"Abend",  stops:["#ff6b8b","#f670c1","#b263fc","#480bf7","#141046","#0a0a18","#7a3b6e"] },
-  { id:"tusche", name:"Tusche", stops:["#ffffff","#cfcfda","#8a8a99","#33333d","#0b0b10","#22222a","#9b9baa"] }
+  { id:"abend",  name:"Abend",  stops:["#ff6b8b","#f670c1","#b263fc","#6b4bf7","#2b3aa8","#3f7fd6","#c86a9c"] },
+  { id:"signal", name:"Signal", stops:["#8ffd16","#22e6b9","#00c1ff","#4646ff","#ff2c9e","#ff4331","#ffd034"] }
 ];
 
 /* 8 Stützstellen pro Palette — der Shader rechnet mit fester Länge. */
@@ -333,6 +333,22 @@ vec3 flow(vec2 p, float t){
   return vec3(f, dot(r,r), q.x);
 }
 
+/* ---------- Auflagefläche ----------
+   Kein sauberer Ellipsenrand: die Kante franst aus, und ganz außen setzt
+   die Farbe nur noch stellenweise auf — wie ein Abdruck, der nicht überall
+   trägt. */
+float footprint(vec2 e, float rr, float seed){
+  float th = atan(e.y, e.x);
+  float edge = 1.0
+             + 0.19*snoise(vec2(cos(th), sin(th))*1.55 + seed)
+             + 0.10*snoise(e*2.4 + seed*1.7);
+  edge = max(edge, 0.45);
+  float m = 1.0 - smoothstep(edge*0.82, edge*1.02, rr);
+  float rim = smoothstep(0.52, 1.02, rr/edge);
+  m *= 1.0 - rim*0.88*smoothstep(0.30, -0.30, snoise(e*5.2 + seed*3.1));
+  return clamp(m, 0.0, 1.0);
+}
+
 /* ---------- Drehung ---------- */
 vec2 rot(vec2 v, float a){
   float c = cos(a), s = sin(a);
@@ -372,7 +388,7 @@ void main(){
                  fbmSoft(p0*0.95 - 2.7 - uTime*0.010));
   float phase = fbmSoft(p0*1.05 + wv*0.75) * uRidge * 0.80;
 
-  float ink = 0.0, glow = 0.0, scan = 0.0, contact = 0.0;
+  float ink = 0.0, glow = 0.0, scan = 0.0;
   /* Kerne überlagern sich nicht — der nächstgelegene setzt sich durch,
      sonst entsteht dort, wo zwei Abdrücke aneinanderstoßen, Moiré. */
   float coreW = 0.0, coreP = 0.0;
@@ -397,12 +413,11 @@ void main(){
               + 0.55*snoise(e*1.45 + seed);
       }
 
-      float g    = B.y*1.06;
-      float foot = 1.0 - smoothstep(0.74, 1.02, rr);
+      float g    = B.y*1.10;
+      float foot = footprint(e, rr, seed);
       float draw = 1.0 - smoothstep(g, g + 0.20, rr);
       float m    = foot*draw;
-      ink     = max(ink, m);
-      contact = max(contact, foot);
+      ink = max(ink, m);
 
       float q = (rr - g)/0.075;
       scan += exp(-q*q) * foot * (0.35 + 0.5*B.w);
@@ -420,9 +435,9 @@ void main(){
       if(rr < 1.5){
         /* ein liegengebliebener Abdruck behält seinen Kern — sonst zerfällt er
            beim Loslassen in das Irrgartenmuster des Untergrunds */
+        float seed = fract(A.x*13.7 + A.y*7.3) * 6.2831;
         float infl = smoothstep(1.45, 0.1, rr);
         if(infl > coreW){
-          float seed = fract(A.x*13.7 + A.y*7.3) * 6.2831;
           float th   = atan(e.y, e.x);
           coreW = infl;
           coreP = rr*uRidge*0.46
@@ -431,8 +446,8 @@ void main(){
                 + 0.55*snoise(e*1.45 + seed);
         }
 
-        float g    = B.y*1.06;
-        float foot = 1.0 - smoothstep(0.70, 1.02, rr);
+        float g    = B.y*1.10;
+        float foot = footprint(e, rr, seed);
         float draw = 1.0 - smoothstep(g, g + 0.24, rr);
         float m    = foot*draw*B.w;
         ink   = max(ink, m*clamp(B.z, 0.0, 1.0));
@@ -449,26 +464,35 @@ void main(){
 #else
   float aaw = 0.20;
 #endif
-  float line = 1.0 - smoothstep(0.0, 0.26 + aaw, tri);
+  float line = 1.0 - smoothstep(0.0, 0.42 + aaw*0.8, tri);
   line *= 1.0 - smoothstep(0.40, 0.95, aaw);          // zu dicht = ausblenden
   line *= smoothstep(-0.62, -0.08, snoise(p0*8.5 + 21.0));  // Unterbrechungen, Minutien
 
-  vec3 rc = palette(uHue + 0.46 + F.x*0.18 + phase*0.0035);
-  vec3 hot = mix(rc, vec3(1.0), 0.38);
-
   ink  = clamp(ink, 0.0, 1.0) * uInk;
-  glow = clamp(glow, 0.0, 2.5) * uInk;
+  glow = clamp(glow, 0.0, 2.0) * uInk;
 
-  col  = mix(col, col*0.16, clamp(contact + glow*0.5, 0.0, 1.0)*0.62*uInk);  // Kontaktschatten
-  col += rc  * line * ink  * (1.05 + 1.25*uEnergy);    // die Rillen selbst
-  col += hot * line * ink  * 0.30;                     // heller Grat
-  col += hot * line * glow * 1.7;                      // Nachglühen
-  col += rc  * scan * 0.65;                            // Kante des Scanners
-  col += hot * scan * scan * 0.30;
+  /* Zwei Farben aus derselben Palette, einander gegenüberliegend: eine für die
+     Rille, eine für den Zwischenraum. Kein Weiß, kein Schwarz — der Abdruck
+     bleibt durchgehend farbig, der Kontrast kommt aus dem Farbabstand. */
+  float ct = tone + 0.33 + glow*0.04;     // fester Abstand zum Untergrund
+  vec3 grund = palette(ct);               // Zwischenraum
+  vec3 rille = palette(ct + 0.5);         // Rille, gegenüberliegend
+  /* Der Farbabstand allein trägt nicht durch jede Palette. Die hellere der
+     beiden wird angehoben, die dunklere abgesenkt — beide bleiben gesättigt,
+     keine läuft nach Weiß oder Schwarz. */
+  float up = step(dot(rille, vec3(0.299,0.587,0.114)),
+                  dot(grund, vec3(0.299,0.587,0.114)));
+  grund *= mix(0.46, 1.04, up);
+  rille *= mix(1.04, 0.46, up);
+
+  col = mix(col, grund, ink);                     // Zwischenraum deckt zu
+  col = mix(col, rille, ink*line);                     // Rillen darüber
+  col += rille * line * glow * 0.40;                   // Nachglühen, farbig
+  col += rille * scan * 0.45;                          // Kante des Scanners
 
   /* ---- Abschluss ---- */
   float v = length((gl_FragCoord.xy - 0.5*uRes)/uRes.y);
-  col *= 1.0 - 0.30*smoothstep(0.35, 1.05, v);
+  col *= 1.0 - 0.18*smoothstep(0.45, 1.10, v);
   col += (fract(sin(dot(gl_FragCoord.xy + uTime, vec2(12.9898,78.233)))*43758.5453) - 0.5) * 0.022;
 
   gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
@@ -564,7 +588,7 @@ const stamps  = [];                 // liegengebliebene Abdrücke
 const GROW   = 0.85;                // Sekunden, bis das Muster fertig gezeichnet ist
 const TRAIL  = 0.75;                // Lebensdauer eines Spurpunkts
 const FOOT   = 24;                  // Ersatzradius in CSS-Pixeln, wenn Safari nichts liefert
-const PAD    = 1.65;                // Safaris Radius fällt kleiner aus als die echte Kuppe
+const PAD    = 1.42;                // Safaris Radius fällt kleiner aus als die echte Kuppe
 
 const toField = (x, y) => [ (x - cssW/2)/cssH, (cssH/2 - y)/cssH ];
 const clamp = (v, a, b) => v < a ? a : (v > b ? b : v);

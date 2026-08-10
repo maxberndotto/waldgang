@@ -76,7 +76,14 @@ ein einziger Fragment-Shader auf einem bildschirmfüllenden Dreieck.
   sie stellenweise auf, wie die Minutien eines echten Abdrucks.
 - **Maske** — nur wo ein Finger liegt oder lag, wird die Phase sichtbar.
   Aktive Finger stehen in `uTouch`, gehobene und geschleifte Abdrücke in einem
-  Ringpuffer `uStamp` mit eigener Lebensdauer.
+  Ringpuffer `uStamp` mit eigener Lebensdauer. Der Rand der Auflagefläche ist
+  keine saubere Ellipse: er franst über zwei Rauschterme aus, und ganz außen
+  setzt die Farbe nur noch stellenweise auf (`footprint` im Shader).
+- **Zwei Farben** — der Abdruck ist flächig zweifarbig: Rille und Zwischenraum
+  liegen einander in der Palette gegenüber, beide um einen festen Abstand vom
+  Untergrund weggedreht. Weiß und Schwarz kommen nicht vor. Weil der Farbabstand
+  allein nicht durch jede Palette trägt, wird die hellere der beiden zusätzlich
+  angehoben und die dunklere abgesenkt — gesättigt, nie ausgewaschen.
 - **Auflösung** — regelt sich selbst nach. Bleibt die Bildzeit über 22 ms, wird
   kleiner gerendert, wird es wieder flott, steigt sie zurück.
 
