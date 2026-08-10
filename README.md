@@ -47,5 +47,12 @@ Anordnung, Flugrichtung und Tiefe der Splitter stehen oben im Script in der
 `PUNKT` hält Lage und Größe des pinken Satzpunkts in `03_satz.png` — beim Austausch
 des Blattes nachziehen, sonst zielt der Schlusszoom daneben.
 
+## `abdruck/` — eigenständige App im selben Repository
+
+Ein Fidget für den Bildschirm, thematisch unabhängig vom Magazin: Berührung wird
+zu strömender Farbe, die Fingerkuppe zeichnet sich als Abdruck nach. Installierbar
+über Safari auf den Home-Bildschirm, offline lauffähig, ohne Backend.
+Details in `abdruck/README.md`.
+
 ## Deployment
 Statische Seiten, kein Build. Dateien an den Webroot laden (FTP) oder via GitHub Pages ausliefern.
