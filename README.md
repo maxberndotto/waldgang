@@ -7,6 +7,7 @@ Eine Datei erkennt Desktop/Handy selbst.
 - `index.html` — Sequenz (Centerfold → Gelb/Weiß-Fade → Tisch/Stühle → Garten → Dolly + Zitat → gelbe Ringe → „Der Waldgang ins Eigene." → Magazin)
 - `magazin.html` — grenzenlose, ziehbare Magazin-Leinwand
 - `impressum.html` — Impressum (verlinkt aufs Magazin)
+- `kniffel.html` — kleines Würfelset (5 Würfel, halten, 3 Würfe), eine Datei ohne Abhängigkeiten
 - `assets/` — Bilder, Videos, Grafiken
 - `wald/` — Schriftzüge und Splitter der Schlusssequenz (**derzeit Platzhalter**, s. u.)
 - `_notes/` — Fundament, Leitgedanken, Wireframes (nicht Teil der Anzeige)

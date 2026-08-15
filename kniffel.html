@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kniffel — Würfelset</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #ffffff;
+    --ink: #0b0b0b;
+    --ink-soft: rgba(11,11,11,0.55);
+    --ink-faint: rgba(11,11,11,0.30);
+    --rule: rgba(11,11,11,0.14);
+    --gelb: #f2c300;
+    --display: "Fraunces", Georgia, serif;
+    --mono: "Space Mono", ui-monospace, Menlo, monospace;
+    --dice: clamp(56px, 15vw, 96px);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: var(--mono);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none; user-select: none;
+  }
+
+  main { width: 100%; max-width: 620px; }
+
+  .kicker {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-faint); display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+  }
+  .kicker::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+
+  h1 {
+    font-family: var(--display); font-weight: 900; font-size: clamp(34px, 9vw, 56px);
+    line-height: 0.94; letter-spacing: -0.02em; margin: 0 0 4px;
+  }
+  h1 em { font-weight: 300; font-style: italic; letter-spacing: 0; }
+
+  .hint { font-size: 11px; letter-spacing: 0.08em; color: var(--ink-soft); margin: 0 0 34px; }
+
+  /* — Würfel — */
+  #tisch {
+    display: flex; flex-wrap: wrap; gap: clamp(10px, 3vw, 18px);
+    justify-content: center; margin-bottom: 34px;
+  }
+
+  .wuerfel {
+    width: var(--dice); height: var(--dice);
+    padding: 0; border: 0; background: none; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wuerfel:focus-visible { outline: 2px solid var(--ink); outline-offset: 6px; border-radius: 4px; }
+
+  .flaeche {
+    width: 100%; height: 100%;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 16%;
+    box-shadow: 0 10px 18px -12px rgba(11,11,11,0.55), inset 0 0 0 1px rgba(255,255,255,0.6);
+    display: grid;
+    grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+    padding: 16%;
+    gap: 6%;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+
+  .auge { align-self: center; justify-self: center; width: 100%; aspect-ratio: 1; border-radius: 50%; background: var(--ink); }
+  /* Augen-Plätze im 3×3-Raster */
+  .p1 { grid-area: 1 / 1; } .p2 { grid-area: 1 / 3; }
+  .p3 { grid-area: 2 / 1; } .p4 { grid-area: 2 / 2; } .p5 { grid-area: 2 / 3; }
+  .p6 { grid-area: 3 / 1; } .p7 { grid-area: 3 / 3; }
+
+  /* gehalten */
+  .wuerfel[aria-pressed="true"] .flaeche {
+    border-color: var(--ink);
+    box-shadow: 0 0 0 2px var(--ink), 0 4px 10px -8px rgba(11,11,11,0.5);
+    transform: translateY(6px);
+  }
+  .wuerfel[aria-pressed="true"] .auge { background: var(--ink); }
+  .wuerfel[aria-pressed="true"]::after {
+    content: "gehalten"; display: block; text-align: center;
+    font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-faint); margin-top: 10px;
+  }
+
+  .wuerfel:not([aria-pressed="true"]):hover .flaeche { transform: translateY(-4px); }
+
+  /* rollen */
+  .rollt .flaeche { animation: taumeln 0.5s ease-in-out; }
+  @keyframes taumeln {
+    0%   { transform: translateY(0) rotate(0deg) scale(1); }
+    30%  { transform: translateY(-26px) rotate(-14deg) scale(1.04); }
+    60%  { transform: translateY(-8px) rotate(10deg) scale(0.99); }
+    100% { transform: translateY(0) rotate(0deg) scale(1); }
+  }
+
+  /* — Steuerung — */
+  .leiste { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; border-top: 1px solid var(--rule); padding-top: 18px; }
+
+  button.tat {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    background: var(--ink); color: var(--paper);
+    border: 1px solid var(--ink); border-radius: 999px;
+    padding: 13px 26px; cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  button.tat:hover { background: var(--gelb); color: var(--ink); border-color: var(--gelb); }
+  button.tat.leer { background: none; color: var(--ink); }
+  button.tat.leer:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  button.tat:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  .stand { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft); margin-left: auto; text-align: right; line-height: 1.9; }
+  .stand b { font-weight: 700; color: var(--ink); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rollt .flaeche { animation: none; }
+    .flaeche, .wuerfel:hover .flaeche { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <p class="kicker">Kniffel · Würfelset</p>
+  <h1>Fünf <em>Würfel</em></h1>
+  <p class="hint">Würfel antippen zum Halten · Leertaste würfelt · Tasten 1–5 halten</p>
+
+  <div id="tisch"></div>
+
+  <div class="leiste">
+    <button class="tat" id="wurf">Würfeln</button>
+    <button class="tat leer" id="neu">Neue Runde</button>
+    <p class="stand">Wurf <b id="zaehler">0</b> / 3<br>Summe <b id="summe">—</b></p>
+  </div>
+</main>
+
+<script>
+(() => {
+  const ANZAHL = 5, MAX_WUERFE = 3;
+  // Augen-Plätze je Zahl (p1 … p7 im 3×3-Raster)
+  const AUGEN = {
+    1: [4], 2: [1, 7], 3: [1, 4, 7], 4: [1, 2, 6, 7],
+    5: [1, 2, 4, 6, 7], 6: [1, 2, 3, 5, 6, 7]
+  };
+
+  const tisch   = document.getElementById('tisch');
+  const bWurf   = document.getElementById('wurf');
+  const bNeu    = document.getElementById('neu');
+  const elZ     = document.getElementById('zaehler');
+  const elS     = document.getElementById('summe');
+
+  const wuerfel = Array.from({ length: ANZAHL }, (_, i) => {
+    const el = document.createElement('button');
+    el.className = 'wuerfel';
+    el.type = 'button';
+    el.setAttribute('aria-pressed', 'false');
+    el.innerHTML = '<span class="flaeche"></span>';
+    el.addEventListener('click', () => halten(i));
+    tisch.appendChild(el);
+    return { el, flaeche: el.querySelector('.flaeche'), wert: i + 1, fest: false };
+  });
+
+  const zufall = () => Math.floor(Math.random() * 6) + 1;
+  let wuerfe = 0, rollend = false;
+
+  function zeichnen(w) {
+    w.flaeche.innerHTML = AUGEN[w.wert].map(p => `<span class="auge p${p}"></span>`).join('');
+    w.el.setAttribute('aria-label', `Würfel ${w.wert}${w.fest ? ', gehalten' : ''}`);
+    w.el.setAttribute('aria-pressed', String(w.fest));
+  }
+
+  function anzeigen() {
+    elZ.textContent = wuerfe;
+    elS.textContent = wuerfe ? wuerfel.reduce((s, w) => s + w.wert, 0) : '—';
+    const fertig = wuerfe >= MAX_WUERFE;
+    bWurf.disabled = fertig || rollend;
+    bWurf.style.opacity = fertig ? 0.3 : 1;
+    bWurf.style.cursor = fertig ? 'default' : 'pointer';
+    bWurf.textContent = wuerfe === 0 ? 'Würfeln' : fertig ? 'Keine Würfe mehr' : 'Nochmal';
+  }
+
+  function halten(i) {
+    if (wuerfe === 0 || rollend) return;   // vor dem ersten Wurf gibt es nichts zu halten
+    const w = wuerfel[i];
+    w.fest = !w.fest;
+    zeichnen(w);
+  }
+
+  function werfen() {
+    if (rollend || wuerfe >= MAX_WUERFE) return;
+    const offen = wuerfel.filter(w => !w.fest);
+    if (!offen.length) return;
+
+    rollend = true;
+    wuerfe++;
+    anzeigen();
+
+    offen.forEach(w => w.el.classList.add('rollt'));
+    // während des Taumelns flackern die Zahlen …
+    const flackern = setInterval(() => offen.forEach(w => { w.wert = zufall(); zeichnen(w); }), 70);
+
+    setTimeout(() => {
+      clearInterval(flackern);
+      offen.forEach(w => { w.wert = zufall(); zeichnen(w); w.el.classList.remove('rollt'); });
+      rollend = false;
+      anzeigen();
+    }, 500);
+  }
+
+  function neueRunde() {
+    if (rollend) return;
+    wuerfe = 0;
+    wuerfel.forEach(w => { w.fest = false; zeichnen(w); });
+    anzeigen();
+  }
+
+  bWurf.addEventListener('click', werfen);
+  bNeu.addEventListener('click', neueRunde);
+
+  addEventListener('keydown', e => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      if (document.activeElement?.tagName === 'BUTTON') return;
+      e.preventDefault(); werfen();
+    } else if (e.key >= '1' && e.key <= '5') {
+      halten(Number(e.key) - 1);
+    } else if (e.key.toLowerCase() === 'r') {
+      neueRunde();
+    }
+  });
+
+  wuerfel.forEach(zeichnen);
+  anzeigen();
+})();
+</script>
+</body>
+</html>
