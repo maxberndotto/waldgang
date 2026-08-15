@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141310" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Kniffel — Würfelset</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,900;1,9..144,300&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* Schriften: Fraunces + Space Mono von Google Fonts (SIL OFL 1.1) */
+
+
+:root {
+  /* Papier, Tusche, ein Gelb — mehr braucht der Tisch nicht */
+  --paper: #ffffff;
+  --karte: #ffffff;
+  --karte-fest: #fbf1cd;
+  --auge: #0b0b0b;
+  --ink: #0b0b0b;
+  --ink-soft: rgba(11,11,11,0.55);
+  --ink-faint: rgba(11,11,11,0.30);
+  --rule: rgba(11,11,11,0.14);
+  --kante: rgba(11,11,11,0.14);
+  --gold: #c9a200;
+  --gelb: #f2c300;
+  --schatten: rgba(11,11,11,0.55);
+  --knopf-bg: #0b0b0b;
+  --knopf-fg: #ffffff;
+
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --mono: "Space Mono", ui-monospace, Menlo, Consolas, monospace;
+  --dice-max: 108px;   /* Kantenlänge nach oben gedeckelt; die Breite rechnet der Tisch aus */
+  --luft: 18px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #141310;          /* warmes Dunkel, zum Gelb hin gekippt */
+    --karte: #eae4d6;          /* Knochen — der Würfel bleibt hell */
+    --karte-fest: #ecdca6;
+    --auge: #141310;
+    --ink: #e8e3d6;
+    --ink-soft: rgba(232,227,214,0.58);
+    --ink-faint: rgba(232,227,214,0.32);
+    --rule: rgba(232,227,214,0.16);
+    --kante: rgba(0,0,0,0.35);
+    --schatten: rgba(0,0,0,0.75);
+    --knopf-bg: #eae4d6;
+    --knopf-fg: #141310;
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #141310;
+  --karte: #eae4d6;
+  --karte-fest: #ecdca6;
+  --auge: #141310;
+  --ink: #e8e3d6;
+  --ink-soft: rgba(232,227,214,0.58);
+  --ink-faint: rgba(232,227,214,0.32);
+  --rule: rgba(232,227,214,0.16);
+  --kante: rgba(0,0,0,0.35);
+  --schatten: rgba(0,0,0,0.75);
+  --knopf-bg: #eae4d6;
+  --knopf-fg: #141310;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh; min-height: 100dvh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--mono);
+  -webkit-font-smoothing: antialiased;
+  -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+
+/* Der Kasten, nicht das Geraetefenster, bestimmt die Groessen: im Artefakt-Rahmen,
+   im iframe, in der Vorschau — ueberall dieselbe Rechnung. */
+main {
+  display: flex; flex-direction: column;
+  min-height: 100vh; min-height: 100svh;
+  max-width: 460px; margin: 0 auto;
+  padding: 26px 20px 18px;
+}
+
+/* — Kopf — */
+.kicker {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--ink-faint);
+  display: flex; align-items: center; gap: 10px; margin: 0 0 12px;
+}
+.kicker::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+
+h1 {
+  font-family: var(--display); font-weight: 900;
+  font-size: 40px; line-height: 0.94; letter-spacing: -0.02em;
+  margin: 0; text-wrap: balance;
+}
+h1 em { font-weight: 300; font-style: italic; letter-spacing: 0; }
+
+.hint { font-size: 11px; letter-spacing: 0.06em; color: var(--ink-soft); margin: 8px 0 0; }
+
+/* — Tisch — */
+#tisch {
+  flex: 1;
+  display: flex; flex-wrap: wrap; align-content: center; justify-content: center;
+  gap: var(--luft);
+  padding: 24px 0;
+  width: 100%;
+  max-width: calc(var(--dice-max) * 3 + var(--luft) * 2);   /* drei oben, zwei unten */
+  margin: 0 auto;
+}
+
+/* Drei Wuerfel plus zwei Luecken teilen sich die Tischbreite — reine Prozentrechnung,
+   damit die Wuerfel in jedem Kasten passen, egal wie breit der Betrachter ihn aufzieht. */
+.wuerfel {
+  flex: 0 0 calc((100% - 2 * var(--luft)) / 3);
+  max-width: var(--dice-max);
+  aspect-ratio: 1;
+  padding: 0; border: 0; background: none;
+  touch-action: manipulation; cursor: pointer;
+}
+.wuerfel:focus-visible { outline: 2px solid var(--gold); outline-offset: 6px; border-radius: 22%; }
+
+.flaeche {
+  display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  width: 100%; height: 100%;
+  padding: 16%; gap: 6%;
+  background: var(--karte);
+  border: 1px solid var(--kante);
+  border-radius: 18%;
+  box-shadow: 0 12px 20px -14px var(--schatten);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.auge { align-self: center; justify-self: center; width: 100%; aspect-ratio: 1; border-radius: 50%; background: var(--auge); }
+.p1 { grid-area: 1 / 1; } .p2 { grid-area: 1 / 3; }
+.p3 { grid-area: 2 / 1; } .p4 { grid-area: 2 / 2; } .p5 { grid-area: 2 / 3; }
+.p6 { grid-area: 3 / 1; } .p7 { grid-area: 3 / 3; }
+
+/* gehalten: der Würfel wird golden und sinkt in den Tisch */
+.wuerfel[aria-pressed="true"] .flaeche {
+  background: var(--karte-fest);
+  border: 2px solid var(--gold);
+  box-shadow: 0 4px 8px -8px var(--schatten);
+  transform: translateY(5px) scale(0.96);
+}
+
+.wuerfel:active .flaeche { transform: scale(0.94); }
+.wuerfel[aria-pressed="true"]:active .flaeche { transform: translateY(5px) scale(0.92); }
+@media (hover: hover) {
+  .wuerfel:not([aria-pressed="true"]):hover .flaeche { transform: translateY(-4px); }
+}
+
+.rollt .flaeche { animation: taumeln 0.5s ease-in-out; }
+@keyframes taumeln {
+  0%   { transform: translateY(0) rotate(0deg) scale(1); }
+  30%  { transform: translateY(-22px) rotate(-14deg) scale(1.04); }
+  60%  { transform: translateY(-6px) rotate(10deg) scale(0.99); }
+  100% { transform: translateY(0) rotate(0deg) scale(1); }
+}
+
+/* — Fuss: alles in Daumenreichweite — */
+footer { border-top: 1px solid var(--rule); padding-top: 14px; }
+
+.stand {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-soft); margin: 0 0 14px;
+}
+.stand b { font-weight: 700; color: var(--ink); font-size: 12px; font-variant-numeric: tabular-nums; }
+.punkte { display: inline-flex; gap: 5px; vertical-align: middle; margin-left: 8px; }
+.punkt { width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--ink-faint); transition: background 0.2s ease, border-color 0.2s ease; }
+.punkt.voll { background: var(--ink); border-color: var(--ink); }
+
+button.tat {
+  display: block; width: 100%;
+  font-family: var(--mono); font-size: 13px; font-weight: 700;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  background: var(--knopf-bg); color: var(--knopf-fg);
+  border: 1px solid var(--knopf-bg); border-radius: 999px;
+  padding: 20px 24px; min-height: 60px; cursor: pointer;
+  transition: transform 0.12s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+button.tat:active { transform: scale(0.98); background: var(--gelb); color: #141310; border-color: var(--gelb); }
+button.tat[disabled] { opacity: 0.25; cursor: default; }
+button.tat:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+
+button.leer {
+  display: block; width: 100%; margin-top: 10px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+  background: none; border: 0; color: var(--ink-soft);
+  padding: 14px; min-height: 44px; cursor: pointer;
+}
+button.leer:active { color: var(--ink); }
+button.leer:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 999px; }
+
+/* Wenig Höhe, hochkant (kleines Handy, kurzer Rahmen): alles rückt zusammen,
+   die Aufstellung bleibt drei oben, zwei unten. */
+@media (max-height: 620px) and (orientation: portrait) {
+  :root { --dice-max: 78px; --luft: 14px; }
+  main { padding: 16px 18px 14px; }
+  h1 { font-size: 28px; }
+  .hint { display: none; }
+  #tisch { padding: 14px 0; }
+  .stand { margin-bottom: 10px; }
+  button.tat { padding: 15px; min-height: 52px; }
+  button.leer { min-height: 38px; padding: 10px; margin-top: 6px; }
+}
+
+/* Querformat: der Tisch ist breiter als hoch, die fünf legen sich in eine Reihe */
+@media (max-height: 620px) and (orientation: landscape) {
+  :root { --dice-max: 84px; --luft: 14px; }
+  main { max-width: 720px; padding: 16px 18px 14px; }
+  h1 { font-size: 26px; }
+  .hint { display: none; }
+  #tisch {
+    flex-wrap: nowrap; padding: 14px 0;
+    max-width: calc(var(--dice-max) * 5 + var(--luft) * 4);
+  }
+  .wuerfel { flex: 0 0 calc((100% - 4 * var(--luft)) / 5); }
+  .stand { margin-bottom: 10px; }
+  button.tat { padding: 15px; min-height: 52px; }
+  button.leer { min-height: 38px; padding: 10px; margin-top: 6px; }
+}
+
+/* Ganz flach (Vorschau, geteilter Bildschirm): Überschrift weg, nur noch Spiel */
+@media (max-height: 420px) {
+  :root { --dice-max: 64px; }
+  header { display: none; }
+  main { padding-top: 12px; }
+  #tisch { padding: 6px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rollt .flaeche { animation: none; }
+  .flaeche, .punkt, button.tat { transition: none; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="kicker">Kniffel · Würfelset</p>
+    <h1>Fünf <em>Würfel</em></h1>
+    <p class="hint">Würfel antippen hält ihn liegen.</p>
+  </header>
+
+  <div id="tisch"></div>
+
+  <footer>
+    <p class="stand">
+      <span>Wurf <span class="punkte" id="punkte"></span></span>
+      <span>Summe <b id="summe">—</b></span>
+    </p>
+    <button class="tat" id="wurf" type="button">Würfeln</button>
+    <button class="leer" id="neu" type="button">Neue Runde</button>
+  </footer>
+</main>
+
+<script>
+(() => {
+  const ANZAHL = 5, MAX_WUERFE = 3;
+  // Augen-Plätze je Zahl (p1 … p7 im 3×3-Raster)
+  const AUGEN = {
+    1: [4], 2: [1, 7], 3: [1, 4, 7], 4: [1, 2, 6, 7],
+    5: [1, 2, 4, 6, 7], 6: [1, 2, 3, 5, 6, 7]
+  };
+
+  const tisch = document.getElementById('tisch');
+  const bWurf = document.getElementById('wurf');
+  const bNeu  = document.getElementById('neu');
+  const elP   = document.getElementById('punkte');
+  const elS   = document.getElementById('summe');
+
+  const zittern = m => { try { navigator.vibrate && navigator.vibrate(m); } catch (e) {} };
+
+  const wuerfel = Array.from({ length: ANZAHL }, (_, i) => {
+    const el = document.createElement('button');
+    el.className = 'wuerfel';
+    el.type = 'button';
+    el.setAttribute('aria-pressed', 'false');
+    el.innerHTML = '<span class="flaeche"></span>';
+    el.addEventListener('click', () => halten(i));
+    tisch.appendChild(el);
+    return { el, flaeche: el.querySelector('.flaeche'), wert: i + 1, fest: false };
+  });
+
+  elP.innerHTML = Array.from({ length: MAX_WUERFE }, () => '<i class="punkt"></i>').join('');
+  const punkte = [...elP.children];
+
+  const zufall = () => Math.floor(Math.random() * 6) + 1;
+  let wuerfe = 0, rollend = false;
+
+  function zeichnen(w) {
+    w.flaeche.innerHTML = AUGEN[w.wert].map(p => '<span class="auge p' + p + '"></span>').join('');
+    w.el.setAttribute('aria-label', 'Würfel ' + w.wert + (w.fest ? ', gehalten' : ''));
+    w.el.setAttribute('aria-pressed', String(w.fest));
+  }
+
+  function anzeigen() {
+    punkte.forEach((p, i) => p.classList.toggle('voll', i < wuerfe));
+    elS.textContent = wuerfe ? wuerfel.reduce((s, w) => s + w.wert, 0) : '—';
+    const fertig = wuerfe >= MAX_WUERFE;
+    bWurf.disabled = fertig || rollend;
+    bWurf.textContent = wuerfe === 0 ? 'Würfeln' : fertig ? 'Runde zu Ende' : 'Nochmal';
+  }
+
+  function halten(i) {
+    if (wuerfe === 0 || rollend) return;   // vor dem ersten Wurf gibt es nichts zu halten
+    const w = wuerfel[i];
+    w.fest = !w.fest;
+    zeichnen(w);
+    zittern(10);
+  }
+
+  function werfen() {
+    if (rollend || wuerfe >= MAX_WUERFE) return;
+    const offen = wuerfel.filter(w => !w.fest);
+    if (!offen.length) return;
+
+    rollend = true;
+    wuerfe++;
+    anzeigen();
+    zittern([0, 18, 40, 12]);
+
+    offen.forEach(w => w.el.classList.add('rollt'));
+    // während des Taumelns flackern die Zahlen …
+    const flackern = setInterval(() => offen.forEach(w => { w.wert = zufall(); zeichnen(w); }), 70);
+
+    setTimeout(() => {
+      clearInterval(flackern);
+      offen.forEach(w => { w.wert = zufall(); zeichnen(w); w.el.classList.remove('rollt'); });
+      rollend = false;
+      anzeigen();
+    }, 500);
+  }
+
+  function neueRunde() {
+    if (rollend) return;
+    wuerfe = 0;
+    wuerfel.forEach(w => { w.fest = false; zeichnen(w); });
+    anzeigen();
+  }
+
+  bWurf.addEventListener('click', werfen);
+  bNeu.addEventListener('click', neueRunde);
+
+  wuerfel.forEach(zeichnen);
+  anzeigen();
+})();
+</script>
+</body>
+</html>
