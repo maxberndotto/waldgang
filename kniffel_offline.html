@@ -36,8 +36,8 @@
 
   --display: "Fraunces", Georgia, "Times New Roman", serif;
   --mono: "Space Mono", ui-monospace, Menlo, Consolas, monospace;
-  --dice: min(26vw, 108px);
-  --luft: min(5vw, 20px);
+  --dice-max: 108px;   /* Kantenlänge nach oben gedeckelt; die Breite rechnet der Tisch aus */
+  --luft: 18px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -87,9 +87,11 @@ body {
   overscroll-behavior: none;
 }
 
+/* Der Kasten, nicht das Geraetefenster, bestimmt die Groessen: im Artefakt-Rahmen,
+   im iframe, in der Vorschau — ueberall dieselbe Rechnung. */
 main {
   display: flex; flex-direction: column;
-  min-height: 100vh; min-height: 100dvh;
+  min-height: 100vh; min-height: 100svh;
   max-width: 460px; margin: 0 auto;
   padding: 26px 20px 18px;
 }
@@ -104,7 +106,7 @@ main {
 
 h1 {
   font-family: var(--display); font-weight: 900;
-  font-size: clamp(30px, 10vw, 44px); line-height: 0.94; letter-spacing: -0.02em;
+  font-size: 40px; line-height: 0.94; letter-spacing: -0.02em;
   margin: 0; text-wrap: balance;
 }
 h1 em { font-weight: 300; font-style: italic; letter-spacing: 0; }
@@ -118,12 +120,16 @@ h1 em { font-weight: 300; font-style: italic; letter-spacing: 0; }
   gap: var(--luft);
   padding: 24px 0;
   width: 100%;
-  max-width: calc(var(--dice) * 3 + var(--luft) * 2);   /* drei oben, zwei unten */
+  max-width: calc(var(--dice-max) * 3 + var(--luft) * 2);   /* drei oben, zwei unten */
   margin: 0 auto;
 }
 
+/* Drei Wuerfel plus zwei Luecken teilen sich die Tischbreite — reine Prozentrechnung,
+   damit die Wuerfel in jedem Kasten passen, egal wie breit der Betrachter ihn aufzieht. */
 .wuerfel {
-  width: var(--dice); height: var(--dice);
+  flex: 0 0 calc((100% - 2 * var(--luft)) / 3);
+  max-width: var(--dice-max);
+  aspect-ratio: 1;
   padding: 0; border: 0; background: none;
   touch-action: manipulation; cursor: pointer;
 }
@@ -202,14 +208,41 @@ button.leer {
 button.leer:active { color: var(--ink); }
 button.leer:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 999px; }
 
-/* Querformat: Kopf schrumpft, die fünf legen sich in eine Reihe */
-@media (orientation: landscape) and (max-height: 560px) {
-  :root { --dice: min(15vw, 84px); }
-  main { max-width: 720px; }
+/* Wenig Höhe, hochkant (kleines Handy, kurzer Rahmen): alles rückt zusammen,
+   die Aufstellung bleibt drei oben, zwei unten. */
+@media (max-height: 620px) and (orientation: portrait) {
+  :root { --dice-max: 78px; --luft: 14px; }
+  main { padding: 16px 18px 14px; }
+  h1 { font-size: 28px; }
+  .hint { display: none; }
+  #tisch { padding: 14px 0; }
+  .stand { margin-bottom: 10px; }
+  button.tat { padding: 15px; min-height: 52px; }
+  button.leer { min-height: 38px; padding: 10px; margin-top: 6px; }
+}
+
+/* Querformat: der Tisch ist breiter als hoch, die fünf legen sich in eine Reihe */
+@media (max-height: 620px) and (orientation: landscape) {
+  :root { --dice-max: 84px; --luft: 14px; }
+  main { max-width: 720px; padding: 16px 18px 14px; }
   h1 { font-size: 26px; }
   .hint { display: none; }
-  #tisch { max-width: none; flex-wrap: nowrap; padding: 14px 0; }
+  #tisch {
+    flex-wrap: nowrap; padding: 14px 0;
+    max-width: calc(var(--dice-max) * 5 + var(--luft) * 4);
+  }
+  .wuerfel { flex: 0 0 calc((100% - 4 * var(--luft)) / 5); }
+  .stand { margin-bottom: 10px; }
   button.tat { padding: 15px; min-height: 52px; }
+  button.leer { min-height: 38px; padding: 10px; margin-top: 6px; }
+}
+
+/* Ganz flach (Vorschau, geteilter Bildschirm): Überschrift weg, nur noch Spiel */
+@media (max-height: 420px) {
+  :root { --dice-max: 64px; }
+  header { display: none; }
+  main { padding-top: 12px; }
+  #tisch { padding: 6px 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
