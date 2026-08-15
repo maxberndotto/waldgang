@@ -7,7 +7,10 @@ Eine Datei erkennt Desktop/Handy selbst.
 - `index.html` — Sequenz (Centerfold → Gelb/Weiß-Fade → Tisch/Stühle → Garten → Dolly + Zitat → gelbe Ringe → „Der Waldgang ins Eigene." → Magazin)
 - `magazin.html` — grenzenlose, ziehbare Magazin-Leinwand
 - `impressum.html` — Impressum (verlinkt aufs Magazin)
-- `kniffel.html` — kleines Würfelset (5 Würfel, halten, 3 Würfe), eine Datei ohne Abhängigkeiten
+- `kniffel.html` — kleines Würfelset (5 Würfel, halten, 3 Würfe), Hochformat, Bedienung nur per Finger
+- `kniffel_offline.html` — dasselbe Set, aber vollständig eigenständig: Schriften als Data-URI
+  eingebettet, kein einziger externer Request. Zum Weitergeben, für den Startbildschirm des
+  Handys und für den Betrieb ohne Netz.
 - `assets/` — Bilder, Videos, Grafiken
 - `wald/` — Schriftzüge und Splitter der Schlusssequenz (**derzeit Platzhalter**, s. u.)
 - `_notes/` — Fundament, Leitgedanken, Wireframes (nicht Teil der Anzeige)
@@ -47,6 +50,17 @@ Anordnung, Flugrichtung und Tiefe der Splitter stehen oben im Script in der
 `CHIPS`-Liste, die Zeiten der Stationen in `STAT`. Beides ist ohne Umbau editierbar.
 `PUNKT` hält Lage und Größe des pinken Satzpunkts in `03_satz.png` — beim Austausch
 des Blattes nachziehen, sonst zielt der Schlusszoom daneben.
+
+## Die zwei Würfelset-Dateien
+
+Beide Seiten sind bis auf die Schriftzeilen zeichengleich — wer an einer etwas ändert, muss es
+in der anderen nachziehen. `kniffel.html` lädt Fraunces und Space Mono von Google Fonts,
+`kniffel_offline.html` trägt sie als Base64-woff2 im Kopf (daher 155 kB statt 11 kB).
+
+Die eingebetteten Schnitte liegen unverändert in `fonts/` — `fraunces-900-latin.woff2`,
+`fraunces-300italic-latin.woff2`, `space-mono-400-latin.woff2`, `space-mono-700-latin.woff2`
+(jeweils lateinischer Subset, SIL Open Font License 1.1). Wer die Schriften austauscht,
+base64-kodiert die neuen Dateien und ersetzt die `@font-face`-Zeilen.
 
 ## Deployment
 Statische Seiten, kein Build. Dateien an den Webroot laden (FTP) oder via GitHub Pages ausliefern.
