@@ -34,6 +34,13 @@
   --knopf-bg: #0b0b0b;
   --knopf-fg: #ffffff;
 
+  /* Die vier Farbwürfel — auf Papier wie auf Nacht dieselben Pigmente */
+  --rot: #c4382f;
+  --sonne: #d99400;
+  --gruen: #2f8757;
+  --blau: #2a63a8;
+  --auge-hell: #fbf9f4;
+
   --display: "Fraunces", Georgia, "Times New Roman", serif;
   --mono: "Space Mono", ui-monospace, Menlo, Consolas, monospace;
   --dice-max: 108px;   /* Kantenlänge nach oben gedeckelt; die Breite rechnet der Tisch aus */
@@ -43,7 +50,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --paper: #141310;          /* warmes Dunkel, zum Gelb hin gekippt */
-    --karte: #eae4d6;          /* Knochen — der Würfel bleibt hell */
+    --karte: #eae4d6;          /* Knochen — der weiße Würfel bleibt hell */
     --karte-fest: #ecdca6;
     --auge: #141310;
     --ink: #e8e3d6;
@@ -54,6 +61,10 @@
     --schatten: rgba(0,0,0,0.75);
     --knopf-bg: #eae4d6;
     --knopf-fg: #141310;
+    --rot: #d1463b;            /* im Dunkeln eine Spur heller, sonst sackt die Farbe ab */
+    --sonne: #e0a10b;
+    --gruen: #359463;
+    --blau: #3a72b8;
   }
 }
 
@@ -70,6 +81,10 @@
   --schatten: rgba(0,0,0,0.75);
   --knopf-bg: #eae4d6;
   --knopf-fg: #141310;
+  --rot: #d1463b;
+  --sonne: #e0a10b;
+  --gruen: #359463;
+  --blau: #3a72b8;
 }
 
 * { box-sizing: border-box; }
@@ -94,7 +109,9 @@ main {
   min-height: 100vh; min-height: 100svh;
   max-width: 460px; margin: 0 auto;
   padding: 26px 20px 18px;
+  --tisch-breite: calc(var(--dice-max) * 3 + var(--luft) * 2);
 }
+main[data-modus="kwix"] { --tisch-breite: calc(var(--dice-max) * 4 + var(--luft) * 3); }
 
 /* — Kopf — */
 .kicker {
@@ -113,26 +130,47 @@ h1 em { font-weight: 300; font-style: italic; letter-spacing: 0; }
 
 .hint { font-size: 11px; letter-spacing: 0.06em; color: var(--ink-soft); margin: 8px 0 0; }
 
+/* — Umschalter — */
+.modi { display: flex; gap: 8px; margin-top: 16px; }
+button.modus {
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  background: none; color: var(--ink-soft);
+  border: 1px solid var(--rule); border-radius: 999px;
+  padding: 10px 16px; min-height: 40px; cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+button.modus[aria-pressed="true"] { background: var(--knopf-bg); color: var(--knopf-fg); border-color: var(--knopf-bg); }
+button.modus:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+
 /* — Tisch — */
 #tisch {
   flex: 1;
-  display: flex; flex-wrap: wrap; align-content: center; justify-content: center;
+  display: flex; flex-direction: column; justify-content: center;
   gap: var(--luft);
   padding: 24px 0;
-  width: 100%;
-  max-width: calc(var(--dice-max) * 3 + var(--luft) * 2);   /* drei oben, zwei unten */
+  width: 100%; max-width: var(--tisch-breite);
   margin: 0 auto;
 }
 
-/* Drei Wuerfel plus zwei Luecken teilen sich die Tischbreite — reine Prozentrechnung,
-   damit die Wuerfel in jedem Kasten passen, egal wie breit der Betrachter ihn aufzieht. */
-.wuerfel {
-  flex: 0 0 calc((100% - 2 * var(--luft)) / 3);
+/* Eine Reihe rechnet ihre Würfelbreite aus der eigenen Breite: n Würfel, n-1 Lücken.
+   Damit passt der Tisch in jeden Kasten, egal wie breit der Betrachter ihn aufzieht. */
+.reihe {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: var(--luft);
+}
+.platz {
+  flex: 0 0 calc((100% - (var(--spalten) - 1) * var(--luft)) / var(--spalten));
   max-width: var(--dice-max);
-  aspect-ratio: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+}
+
+.wuerfel {
+  width: 100%; aspect-ratio: 1;
   padding: 0; border: 0; background: none;
   touch-action: manipulation; cursor: pointer;
 }
+.wuerfel:disabled { cursor: default; }
 .wuerfel:focus-visible { outline: 2px solid var(--gold); outline-offset: 6px; border-radius: 22%; }
 
 .flaeche {
@@ -143,7 +181,8 @@ h1 em { font-weight: 300; font-style: italic; letter-spacing: 0; }
   border: 1px solid var(--kante);
   border-radius: 18%;
   box-shadow: 0 12px 20px -14px var(--schatten);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease,
+              border-color 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
 }
 
 .auge { align-self: center; justify-self: center; width: 100%; aspect-ratio: 1; border-radius: 50%; background: var(--auge); }
@@ -151,18 +190,43 @@ h1 em { font-weight: 300; font-style: italic; letter-spacing: 0; }
 .p3 { grid-area: 2 / 1; } .p4 { grid-area: 2 / 2; } .p5 { grid-area: 2 / 3; }
 .p6 { grid-area: 3 / 1; } .p7 { grid-area: 3 / 3; }
 
-/* gehalten: der Würfel wird golden und sinkt in den Tisch */
-.wuerfel[aria-pressed="true"] .flaeche {
+/* Farbwürfel: gefärbte Fläche, helle Augen */
+.platz.rot    .flaeche { background: var(--rot);   border-color: transparent; }
+.platz.sonne  .flaeche { background: var(--sonne); border-color: transparent; }
+.platz.gruen  .flaeche { background: var(--gruen); border-color: transparent; }
+.platz.blau   .flaeche { background: var(--blau);  border-color: transparent; }
+.platz.rot .auge, .platz.sonne .auge, .platz.gruen .auge, .platz.blau .auge { background: var(--auge-hell); }
+
+/* Die Marke unter dem Würfel: Farbname und, nach dem Wurf, die möglichen Summen.
+   Der Name steht da, damit die Farbe nicht die einzige Auskunft ist. */
+.marke {
+  font-size: 9px; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--ink-soft); text-align: center; min-height: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;   /* „Gelb 7 · 11" darf nicht umbrechen, sonst rutschen die Reihen */
+}
+.marke b { font-weight: 700; color: var(--ink); }
+
+/* Kniffel: gehalten — der Würfel wird golden und sinkt in den Tisch */
+[data-modus="kniffel"] .wuerfel[aria-pressed="true"] .flaeche {
   background: var(--karte-fest);
   border: 2px solid var(--gold);
   box-shadow: 0 4px 8px -8px var(--schatten);
   transform: translateY(5px) scale(0.96);
 }
 
-.wuerfel:active .flaeche { transform: scale(0.94); }
-.wuerfel[aria-pressed="true"]:active .flaeche { transform: translateY(5px) scale(0.92); }
+/* Kwix: aus dem Spiel — der Würfel liegt blass daneben */
+[data-modus="kwix"] .wuerfel[aria-pressed="true"] .flaeche {
+  opacity: 0.22; filter: saturate(0.25); box-shadow: none;
+  transform: scale(0.88);
+}
+[data-modus="kwix"] .wuerfel[aria-pressed="true"] + .marke { color: var(--ink-faint); text-decoration: line-through; }
+
+.wuerfel:not(:disabled):active .flaeche { transform: scale(0.94); }
+[data-modus="kniffel"] .wuerfel[aria-pressed="true"]:active .flaeche { transform: translateY(5px) scale(0.92); }
+[data-modus="kwix"] .wuerfel[aria-pressed="true"]:active .flaeche { transform: scale(0.84); }
 @media (hover: hover) {
-  .wuerfel:not([aria-pressed="true"]):hover .flaeche { transform: translateY(-4px); }
+  .wuerfel:not(:disabled):not([aria-pressed="true"]):hover .flaeche { transform: translateY(-4px); }
 }
 
 .rollt .flaeche { animation: taumeln 0.5s ease-in-out; }
@@ -206,65 +270,69 @@ button.leer {
   padding: 14px; min-height: 44px; cursor: pointer;
 }
 button.leer:active { color: var(--ink); }
+button.leer[hidden] { display: none; }
 button.leer:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 999px; }
 
 /* Wenig Höhe, hochkant (kleines Handy, kurzer Rahmen): alles rückt zusammen,
-   die Aufstellung bleibt drei oben, zwei unten. */
-@media (max-height: 620px) and (orientation: portrait) {
+   die Aufstellung bleibt, nur die Würfel werden kleiner. */
+@media (max-height: 680px) and (orientation: portrait) {
   :root { --dice-max: 78px; --luft: 14px; }
   main { padding: 16px 18px 14px; }
   h1 { font-size: 28px; }
   .hint { display: none; }
+  .modi { margin-top: 12px; }
   #tisch { padding: 14px 0; }
   .stand { margin-bottom: 10px; }
   button.tat { padding: 15px; min-height: 52px; }
   button.leer { min-height: 38px; padding: 10px; margin-top: 6px; }
 }
 
-/* Querformat: der Tisch ist breiter als hoch, die fünf legen sich in eine Reihe */
+/* Querformat: der Tisch ist breiter als hoch */
 @media (max-height: 620px) and (orientation: landscape) {
-  :root { --dice-max: 84px; --luft: 14px; }
+  :root { --dice-max: 76px; --luft: 14px; }
   main { max-width: 720px; padding: 16px 18px 14px; }
   h1 { font-size: 26px; }
   .hint { display: none; }
-  #tisch {
-    flex-wrap: nowrap; padding: 14px 0;
-    max-width: calc(var(--dice-max) * 5 + var(--luft) * 4);
-  }
-  .wuerfel { flex: 0 0 calc((100% - 4 * var(--luft)) / 5); }
+  .modi { margin-top: 10px; }
+  #tisch { padding: 12px 0; }
   .stand { margin-bottom: 10px; }
   button.tat { padding: 15px; min-height: 52px; }
   button.leer { min-height: 38px; padding: 10px; margin-top: 6px; }
 }
 
 /* Ganz flach (Vorschau, geteilter Bildschirm): Überschrift weg, nur noch Spiel */
-@media (max-height: 420px) {
-  :root { --dice-max: 64px; }
-  header { display: none; }
+@media (max-height: 440px) {
+  :root { --dice-max: 60px; }
+  header .kicker, h1, .hint { display: none; }
+  .modi { margin-top: 0; }
   main { padding-top: 12px; }
   #tisch { padding: 6px 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .rollt .flaeche { animation: none; }
-  .flaeche, .punkt, button.tat { transition: none; }
+  .flaeche, .punkt, button.tat, button.modus { transition: none; }
 }
 </style>
 </head>
 <body>
-<main>
+<main data-modus="kniffel">
   <header>
-    <p class="kicker">Kniffel · Würfelset</p>
-    <h1>Fünf <em>Würfel</em></h1>
-    <p class="hint">Würfel antippen hält ihn liegen.</p>
+    <p class="kicker">Würfelset · Kniffel &amp; Kwix</p>
+    <h1><span id="zahlwort">Fünf</span> <em>Würfel</em></h1>
+    <p class="hint" id="hinweis">Würfel antippen hält ihn liegen.</p>
+    <div class="modi" role="group" aria-label="Spielart">
+      <button class="modus" type="button" data-modus="kniffel" aria-pressed="true">Kniffel</button>
+      <button class="modus" type="button" data-modus="kwix" aria-pressed="false">Kwix</button>
+    </div>
   </header>
 
   <div id="tisch"></div>
 
   <footer>
     <p class="stand">
-      <span>Wurf <span class="punkte" id="punkte"></span></span>
-      <span>Summe <b id="summe">—</b></span>
+      <span id="links">Wurf <span class="punkte" id="punkte"></span></span>
+      <span id="rechts">Summe <b id="summe">—</b></span>
     </p>
     <button class="tat" id="wurf" type="button">Würfeln</button>
     <button class="leer" id="neu" type="button">Neue Runde</button>
@@ -273,67 +341,155 @@ button.leer:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px;
 
 <script>
 (() => {
-  const ANZAHL = 5, MAX_WUERFE = 3;
   // Augen-Plätze je Zahl (p1 … p7 im 3×3-Raster)
   const AUGEN = {
     1: [4], 2: [1, 7], 3: [1, 4, 7], 4: [1, 2, 6, 7],
     5: [1, 2, 4, 6, 7], 6: [1, 2, 3, 5, 6, 7]
   };
 
-  const tisch = document.getElementById('tisch');
-  const bWurf = document.getElementById('wurf');
-  const bNeu  = document.getElementById('neu');
-  const elP   = document.getElementById('punkte');
-  const elS   = document.getElementById('summe');
+  const MAX_WUERFE = 3;   // Kniffel
 
+  // Die zwei Becher. Eine Reihe je Zeile; „farbe: null" ist ein weißer Würfel.
+  const MODI = {
+    kniffel: {
+      zahlwort: 'Fünf',
+      hinweis: 'Würfel antippen hält ihn liegen.',
+      reihen: [[null, null, null, null, null]],
+      spalten: 3
+    },
+    kwix: {
+      zahlwort: 'Sechs',
+      hinweis: 'Ein Wurf je Zug. Farbe antippen legt sie aus dem Spiel.',
+      reihen: [[null, null], ['rot', 'sonne', 'gruen', 'blau']],
+      spalten: [2, 4]
+    }
+  };
+
+  const NAME = { rot: 'Rot', sonne: 'Gelb', gruen: 'Grün', blau: 'Blau' };
+
+  const bereich  = document.querySelector('main');
+  const tisch    = document.getElementById('tisch');
+  const bWurf    = document.getElementById('wurf');
+  const bNeu     = document.getElementById('neu');
+  const elLinks  = document.getElementById('links');
+  const elRechts = document.getElementById('rechts');
+  const elZahl   = document.getElementById('zahlwort');
+  const elHinweis = document.getElementById('hinweis');
+
+  const zufall  = () => Math.floor(Math.random() * 6) + 1;
   const zittern = m => { try { navigator.vibrate && navigator.vibrate(m); } catch (e) {} };
 
-  const wuerfel = Array.from({ length: ANZAHL }, (_, i) => {
-    const el = document.createElement('button');
-    el.className = 'wuerfel';
-    el.type = 'button';
-    el.setAttribute('aria-pressed', 'false');
-    el.innerHTML = '<span class="flaeche"></span>';
-    el.addEventListener('click', () => halten(i));
-    tisch.appendChild(el);
-    return { el, flaeche: el.querySelector('.flaeche'), wert: i + 1, fest: false };
-  });
+  let modus = 'kniffel';
+  let wuerfel = [];
+  let wuerfe = 0, geworfen = false, rollend = false;
 
-  elP.innerHTML = Array.from({ length: MAX_WUERFE }, () => '<i class="punkt"></i>').join('');
-  const punkte = [...elP.children];
+  /* — Aufbau — */
 
-  const zufall = () => Math.floor(Math.random() * 6) + 1;
-  let wuerfe = 0, rollend = false;
+  function aufbauen() {
+    const m = MODI[modus];
+    tisch.innerHTML = '';
+    wuerfel = [];
+
+    m.reihen.forEach((reihe, r) => {
+      const zeile = document.createElement('div');
+      zeile.className = 'reihe';
+      zeile.style.setProperty('--spalten', Array.isArray(m.spalten) ? m.spalten[r] : m.spalten);
+
+      reihe.forEach(farbe => {
+        const platz = document.createElement('div');
+        platz.className = 'platz' + (farbe ? ' ' + farbe : '');
+        platz.innerHTML = '<button class="wuerfel" type="button" aria-pressed="false">' +
+                          '<span class="flaeche"></span></button><span class="marke"></span>';
+        zeile.appendChild(platz);
+
+        const w = {
+          farbe,
+          el: platz.querySelector('.wuerfel'),
+          flaeche: platz.querySelector('.flaeche'),
+          marke: platz.querySelector('.marke'),
+          wert: zufall(),
+          fest: false     // Kniffel: liegen gelassen · Kwix: aus dem Spiel
+        };
+        const i = wuerfel.push(w) - 1;
+        w.el.addEventListener('click', () => tippen(i));
+      });
+
+      tisch.appendChild(zeile);
+    });
+
+    bereich.dataset.modus = modus;
+    elZahl.textContent = m.zahlwort;
+    elHinweis.textContent = m.hinweis;
+    bNeu.hidden = modus !== 'kniffel';
+    wuerfel.forEach(zeichnen);
+  }
+
+  /* — Zeichnen — */
 
   function zeichnen(w) {
     w.flaeche.innerHTML = AUGEN[w.wert].map(p => '<span class="auge p' + p + '"></span>').join('');
-    w.el.setAttribute('aria-label', 'Würfel ' + w.wert + (w.fest ? ', gehalten' : ''));
+    const farbe = w.farbe ? NAME[w.farbe] + ' ' : '';
     w.el.setAttribute('aria-pressed', String(w.fest));
+    w.el.setAttribute('aria-label', farbe + w.wert +
+      (w.fest ? (modus === 'kniffel' ? ', gehalten' : ', aus dem Spiel') : ''));
+    // In Kwix sind die weißen Würfel nur Auskunft — sie lassen sich nicht rauslegen.
+    w.el.disabled = modus === 'kwix' && !w.farbe;
+  }
+
+  // Kwix: unter jedem Farbwürfel stehen die Summen, die er mit den weißen bildet.
+  function marken() {
+    if (modus !== 'kwix') return;
+    const weiss = wuerfel.filter(w => !w.farbe).map(w => w.wert);
+    wuerfel.forEach(w => {
+      if (!w.farbe) return;
+      if (!geworfen || w.fest) { w.marke.textContent = NAME[w.farbe]; return; }
+      const summen = [...new Set(weiss.map(v => v + w.wert))].sort((a, b) => a - b);
+      w.marke.innerHTML = NAME[w.farbe] + ' <b>' + summen.join('</b> · <b>') + '</b>';
+    });
   }
 
   function anzeigen() {
-    punkte.forEach((p, i) => p.classList.toggle('voll', i < wuerfe));
-    elS.textContent = wuerfe ? wuerfel.reduce((s, w) => s + w.wert, 0) : '—';
-    const fertig = wuerfe >= MAX_WUERFE;
-    bWurf.disabled = fertig || rollend;
-    bWurf.textContent = wuerfe === 0 ? 'Würfeln' : fertig ? 'Runde zu Ende' : 'Nochmal';
+    if (modus === 'kniffel') {
+      const fertig = wuerfe >= MAX_WUERFE;
+      elLinks.innerHTML = 'Wurf <span class="punkte">' +
+        Array.from({ length: MAX_WUERFE }, (_, i) => '<i class="punkt' + (i < wuerfe ? ' voll' : '') + '"></i>').join('') +
+        '</span>';
+      elRechts.innerHTML = 'Summe <b>' + (wuerfe ? wuerfel.reduce((s, w) => s + w.wert, 0) : '—') + '</b>';
+      bWurf.disabled = fertig || rollend;
+      bWurf.textContent = wuerfe === 0 ? 'Würfeln' : fertig ? 'Runde zu Ende' : 'Nochmal';
+    } else {
+      const weiss = wuerfel.filter(w => !w.farbe).reduce((s, w) => s + w.wert, 0);
+      const imSpiel = wuerfel.filter(w => w.farbe && !w.fest).length;
+      elLinks.innerHTML = 'Weiß <b>' + (geworfen ? weiss : '—') + '</b>';
+      elRechts.innerHTML = 'Farben <b>' + imSpiel + '</b>/4';
+      bWurf.disabled = rollend;
+      bWurf.textContent = geworfen ? 'Nächster Zug' : 'Würfeln';
+      marken();
+    }
   }
 
-  function halten(i) {
-    if (wuerfe === 0 || rollend) return;   // vor dem ersten Wurf gibt es nichts zu halten
+  /* — Spielzüge — */
+
+  function tippen(i) {
     const w = wuerfel[i];
+    if (rollend || w.el.disabled) return;
+    if (modus === 'kniffel' && wuerfe === 0) return;   // vorm ersten Wurf gibt es nichts zu halten
     w.fest = !w.fest;
     zeichnen(w);
+    anzeigen();
     zittern(10);
   }
 
   function werfen() {
-    if (rollend || wuerfe >= MAX_WUERFE) return;
+    if (rollend) return;
+    if (modus === 'kniffel' && wuerfe >= MAX_WUERFE) return;
+
+    // Kniffel lässt gehaltene liegen, Kwix wirft alles, was noch im Spiel ist.
     const offen = wuerfel.filter(w => !w.fest);
     if (!offen.length) return;
 
     rollend = true;
-    wuerfe++;
+    if (modus === 'kniffel') wuerfe++; else geworfen = true;
     anzeigen();
     zittern([0, 18, 40, 12]);
 
@@ -356,10 +512,22 @@ button.leer:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px;
     anzeigen();
   }
 
+  function wechseln(neu) {
+    if (rollend || neu === modus) return;
+    modus = neu;
+    wuerfe = 0; geworfen = false;
+    document.querySelectorAll('button.modus').forEach(b =>
+      b.setAttribute('aria-pressed', String(b.dataset.modus === modus)));
+    aufbauen();
+    anzeigen();
+  }
+
+  document.querySelectorAll('button.modus').forEach(b =>
+    b.addEventListener('click', () => wechseln(b.dataset.modus)));
   bWurf.addEventListener('click', werfen);
   bNeu.addEventListener('click', neueRunde);
 
-  wuerfel.forEach(zeichnen);
+  aufbauen();
   anzeigen();
 })();
 </script>

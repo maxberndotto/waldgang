@@ -7,7 +7,12 @@ Eine Datei erkennt Desktop/Handy selbst.
 - `index.html` — Sequenz (Centerfold → Gelb/Weiß-Fade → Tisch/Stühle → Garten → Dolly + Zitat → gelbe Ringe → „Der Waldgang ins Eigene." → Magazin)
 - `magazin.html` — grenzenlose, ziehbare Magazin-Leinwand
 - `impressum.html` — Impressum (verlinkt aufs Magazin)
-- `kniffel.html` — kleines Würfelset (5 Würfel, halten, 3 Würfe), Hochformat, Bedienung nur per Finger
+- `kniffel.html` — Würfelset mit zwei Spielarten, Hochformat, Bedienung nur per Finger.
+  **Kniffel:** fünf weiße Würfel, antippen hält, drei Würfe je Runde.
+  **Kwix:** zwei weiße und vier farbige Würfel, ein Wurf je Zug, kein Halten; eine Farbe
+  antippen legt sie aus dem Spiel (gesperrte Reihe). Unter jedem Farbwürfel stehen die
+  Summen, die er mit den beiden weißen bildet. Gezählt wird auf Papier — die Seite hat
+  keinen Block.
 - `kniffel_offline.html` — dasselbe Set, aber vollständig eigenständig: Schriften als Data-URI
   eingebettet, kein einziger externer Request. Zum Weitergeben, für den Startbildschirm des
   Handys und für den Betrieb ohne Netz.
